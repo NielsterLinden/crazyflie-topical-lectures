@@ -6,6 +6,8 @@ __pycache__/
 tl-config.env
 /data/
 /day1/
+/day2/
+/day3/
 /E[0-9]*/
 /plans/
 /survey/

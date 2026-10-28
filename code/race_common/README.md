@@ -1,6 +1,6 @@
 # Race models and policies
 
-This shared back end contains gate geometry, survey fitting, uncertainty margins,
+These shared modules contain gate geometry, survey fitting, uncertainty margins,
 race policy examples and integration profiles. The Day 3
 [course planner](../day3/README.md) and Day 2 E7 uncertainty exercise use these
 models. It contains no flight commander.
@@ -13,7 +13,8 @@ models. It contains no flight commander.
 
 The policy extensions retain a central-crossing, fixed-speed baseline.
 For E7, choose a justified uncertainty/tracking margin and braking-aware speed
-policy; flight use still needs a tested adapter and the team's flight checks.
+policy; flight use still needs tested code connecting these decisions to drone
+commands, plus the team's flight checks.
 Run `python -m day3.uncertainty` from `code/` to inspect the estimator-to-clearance
 example. No speed recommendation in that example changes its prescribed motion.
 
@@ -46,7 +47,7 @@ team checks and low-speed testing.
 The [course format and flight-tool guide](../../docs/course_interface.md) specifies the
 pilot-operated launch interface, command units, schema and synthetic example.
 It does not implement automatic profile switching. The
-[recording contract](../../docs/sensor_recording_contract.md) defines the prepared
+[recording guide](../../docs/sensor_recording_contract.md) defines the prepared
 core replay and optional adapter inputs; fused-position replay is labelled
 cascaded rather than independent raw-sensor fusion.
 
@@ -57,7 +58,11 @@ scheduling and link continuity therefore matter, including during best-effort
 landing. The advanced onboard-trajectory option is a separate qualified runner.
 
 For the 30-minute E6 core, use `python -m day2.live` from `code/` with
-the assigned URI, `--motors-disabled` and a new `--output` directory. It compares
+the assigned URI, `--prepare-for-handling` and a new `--output` directory. Place
+the drone down, close other radio clients, and wait for **STOP VERIFIED** before
+handling it: the helper sets `stabilizer.stop=1` and verifies the lock and zero
+motor outputs. The stop remains engaged; power-cycle on the surface and repeat
+preflight checks before flight. It compares
 two configurations on the same stream and saves input for exact offline replay.
 Use `python -m day2.replay` with `--metadata` and a fresh output prefix
 as the immediate fallback. The
@@ -67,13 +72,13 @@ asynchronous timing tests are not prerequisites for that slot.
 
 If live integration is incomplete, use the checked flight fallback
 and evaluate the participant estimator offline on a suitable sensor recording.
-Check that recording against the contract; a position-only race log is not an
+Check the channels, units and timing against that guide; a position-only race log is not an
 inertial sensor dataset. This still permits
 innovation, covariance, controller, and crossing-error analysis.
 
 ### Time-boxed decision points
 
-Follow the authoritative [race freeze points and fallback policy](../../docs/race_practical.md#freeze-points-and-fallback),
+Follow the [race configuration deadlines and fallback steps](../../docs/race_practical.md#freeze-points-and-fallback),
 including the response to failed safety checks.
 
 A team may progress from fallback to full only one feature at a time. Record the

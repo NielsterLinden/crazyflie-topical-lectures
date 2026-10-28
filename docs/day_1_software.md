@@ -18,10 +18,10 @@ cd code
 python -m unittest andreas.test_practical
 python -m day1 --output ../day1/baseline --no-show
 cd ..
-jupyter lab code
+jupyter lab
 ```
 
-Open `andreas/day1_control.ipynb` in Jupyter for the same experiments; it contains
+Open `code/andreas/day1_control.ipynb` in Jupyter for the same experiments; it contains
 no flight commands. The single-line CLI commands work in Bash and PowerShell.
 Use a **new directory** for each run and keep failed runs too. Omit `--no-show`
 for interactive plots.
@@ -105,20 +105,26 @@ First verify the file format without hardware, from `code/`:
 python -m day1 --mode replay --recording ../examples/day1-state.synthetic.csv --output ../day1/replay-format --no-show
 ```
 
-The fixture is synthetic and checks software only. For experimental evidence,
+These example data were generated in software. For experimental evidence,
 use a supplied real recording or a motor-disabled capture after the team's checks:
 
 ```text
 python -m day1 --mode handcheck --duration 20 --output ../day1/handcheck --no-show
 ```
 
-Set the assigned `CF_URI` first (or supply `--uri`). Close cfclient, disable motors
-and remove propellers or use a secure restraint that prevents propeller contact.
+Set the assigned `CF_URI` first (or supply `--uri`). With the drone on a stable
+surface and hands clear, connect cfclient, open **Parameters > stabilizer > stop**,
+set it to `1`, press Enter and check the displayed value and stationary propellers.
+Disconnect and close cfclient without rebooting. Keep clear of fitted propellers;
+see the [firmware-stop procedure](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording).
 The command asks for
 `RECORD ONLY`, logs position/velocity and motor-status blocks, and computes commands
 after capture. It **never arms, resets the estimator or sends setpoints**.
 Nonzero motor commands or stale motor-status telemetry reject the capture; these
 checks do not replace physical restraint or an independent stop operator.
+This Day 1 script does not set or verify the firmware lock itself. After hand
+checks, place the drone down and power-cycle it before the normal flight preflight
+checks; changing `stop` back to `0` does not unlock the firmware.
 
 Hold still at the initial point, move slowly along +X, stop displaced, return,
 and repeat in Y. Position-loop output should oppose displacement; velocity-loop
@@ -141,9 +147,10 @@ to the session origin, world m and m/s. UTF-8 with/without BOM is accepted. Time
 must increase strictly; invalid/missing components are rejected. For separate
 state and sensor logs, prepare a synchronized CSV with these fields and document
 the alignment. Nearest-neighbour matching supports offline diagnostics. Live control
-requires a causal adapter using only measurements available at each update.
+requires code that uses only measurements available at each update.
 Hand captures unwrap the 24-bit firmware log time; it is a logging-time proxy.
-Record firmware, frame, geometry and calibration provenance separately.
+Record the firmware version, coordinate frames, room geometry and calibration
+used when the data were taken.
 
 The replay target is the first measured position on each axis. A supplied
 recording completes the analysis if hardware is unavailable; mark the hand check
@@ -155,7 +162,7 @@ requires a closed-loop experiment or simulation.
 
 For a system-identification extension, use an instructor-provided synchronized
 recording with world velocity, compatible attitude/heading and command channels,
-plus timing and calibration provenance. Check the tilt/acceleration
+plus the sampling times and calibration used. Check the tilt/acceleration
 scale check: near level flight, `degrees(1/g)` is about 5.84 deg per m/s2.
 Distinguish actual tilt, firmware log signs and world-axis direction; model yaw
 and transform before fitting. A lag scan and a stated smoothing/differentiation
@@ -196,12 +203,13 @@ onboard estimator; changing its origin invalidates surveyed room coordinates.
 
 Day 2 explores state estimation, sensor bias, noise, innovation consistency and
 dropout. In E6, the supplied helper compares two filters on live drone data
-during slow hand motion, with motors disabled. It records acceleration, onboard
+during slow hand motion, after its automatic firmware-stop verification prints
+**STOP VERIFIED**. It records acceleration, onboard
 orientation and position, and motor status as described in the
 [sensor recording guide](sensor_recording_contract.md#live-e6-session-and-replay-fallback).
 Saved data support repeatable analysis; a prepared recording provides the fallback
 if live acquisition is unavailable. Day 3 carries forward
 response lag, limits, frames, noise sensitivity and qualification evidence. A
 continuous trajectory may need reference velocity/acceleration feed-forward and
-a different command layer; the acceleration scaffold demonstrates that extension.
+a different command layer; the acceleration-command example demonstrates that extension.
 Neither selecting a profile nor reusing gains automatically integrates hardware.

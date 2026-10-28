@@ -13,10 +13,12 @@ not the safety checks. Agree the final shared course before qualification.
 
 ## Assignment
 
-1. Confirm the Lighthouse frame and stable position estimate. Keep motors
-   disabled, with propellers removed or a secure restraint preventing propeller
-   contact. Close cfclient
-   before connecting the script; only one radio client uses the drone at a time.
+1. Confirm the Lighthouse frame and stable position estimate. Put the drone on a
+   stable surface with hands and loose objects clear of propellers, then close
+   cfclient and other control scripts. The survey tool asks for `STOP AND SURVEY`,
+   sets `stabilizer.stop=1` and verifies the locked state and four zero motor
+   outputs. Wait for **STOP VERIFIED** before picking up the drone. See the
+   [firmware-stop procedure](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording).
 2. Use a pointer/jig referenced to the drone's estimated position. Account for
    any offset: pressing a deck or cage against the rim can shift the fitted gate.
    The script does not correct that offset. With fixed attitude, a known constant
@@ -57,8 +59,20 @@ is supplied. Default sample spacing is 0.02 m; `--sample-spacing 0.01` retains a
 denser trace. The trace starts and stops at the laptop's Enter prompts; turning
 the drone upside down and back does not trigger recording. Move slowly and watch
 the physical drone. The script logs position and sends no arming or flight commands;
-it is not a motor interlock. Physical restraint and the agreed handling procedure
-still apply. No custom firmware or Docker is needed.
+it sets only the firmware stop parameter before acquisition and leaves it engaged.
+Keep clear of propellers while handling. Afterwards, place the drone down and
+power-cycle it before the normal preflight checks for flight. Missing stop/status
+support prevents surveying; use checked shared geometry instead. No custom
+firmware or Docker is needed.
+
+During each trace, connection loss, logging errors, invalid positions and long
+sample gaps reject the acquisition, even if enough earlier points exist to fit
+a gate. The freshness limit is 0.5 s, or three requested log periods if longer.
+On a warning, stop moving and press Enter to finish the trace. The tool saves
+partial observations and their failure reason under `<output-stem>-failed-traces/`
+beside the requested output file; these files contain no fitted gate geometry.
+An interrupted recording is saved there too. Reconnect and record a fresh trace,
+or use checked shared geometry. The firmware stop remains engaged.
 
 ## Constraints and interface
 

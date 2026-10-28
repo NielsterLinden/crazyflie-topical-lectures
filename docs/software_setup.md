@@ -22,9 +22,16 @@ Use the native Python environment for cfclient and Crazyradio access.
 
 ## Native setup
 
-If you already cloned the course, open a terminal in that project folder and
-continue with the instructions for [macOS](#macos), [Linux](#linux) or
-[Windows](#windows) below. You only need to clone once.
+There are two separate steps:
+
+1. Install any missing prerequisite tools for [macOS](#macos), [Linux](#linux)
+   or [Windows](#windows). If they are already installed, skip their installation.
+2. [Set up this project](#create-the-project-environment) in the cloned folder.
+   This step is still needed when Git, Python and the other tools are installed.
+
+If you already cloned the course, open a terminal in that project folder.
+You only need to clone once. Neither `git clone` nor `git pull` creates `.venv`;
+the project setup script creates it locally and installs the lecture packages.
 
 Install Git before cloning: use `xcode-select --install` on macOS, your
 distribution package manager on Linux, or [Git for Windows](https://git-scm.com/downloads/win).
@@ -32,18 +39,20 @@ Open a new Terminal or PowerShell window after installation, then run:
 
 ```text
 git --version
-git clone --branch course --single-branch https://gitlab.com/topical2/crazyflie-lectures.git
-cd crazyflie-lectures
+git clone --branch course --single-branch https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures.git
+cd crazyflie-topical-lectures
 ```
 
-The public `course` branch contains the notes, exercises and code. No GitLab
-account or SSH key is needed to clone it. Keep this terminal in the cloned
-`crazyflie-lectures` folder for the commands below. To check your location, use
+The `course` branch contains the notes, exercises and code. While the project
+is private, you need a Nikhef GitLab account with repository access. Once public,
+it can be cloned without logging in. The [cloning guide](course_git.md#clone-the-course)
+also explains SSH access. Keep this terminal in the cloned
+`crazyflie-topical-lectures` folder for the commands below. To check your location, use
 `pwd` and `ls` on macOS/Linux, or `Get-Location` and `Get-ChildItem` in PowerShell.
 You should see `README.md`, `scripts/`, `code/` and the two requirements files.
 If you open a new terminal, use `cd` with the path where you cloned the project;
-for example `cd "$HOME/Downloads/crazyflie-lectures"` on macOS/Linux or
-`cd "$HOME\Downloads\crazyflie-lectures"` in PowerShell if it is inside Downloads.
+for example `cd "$HOME/Downloads/crazyflie-topical-lectures"` on macOS/Linux or
+`cd "$HOME\Downloads\crazyflie-topical-lectures"` in PowerShell if it is inside Downloads.
 
 The [Git workflow](course_git.md) explains team branches, merging course updates
 and sharing improvements. If you have an offline ZIP snapshot, extract it into
@@ -93,7 +102,6 @@ Install the package manager first and follow its instructions to add it to
 ```bash
 brew install python@3.12 libusb
 "$(brew --prefix)/bin/python3.12" --version
-PYTHON="$(brew --prefix)/bin/python3.12" bash scripts/setup-unix.sh
 ```
 
 **MacPorts:**
@@ -101,7 +109,6 @@ PYTHON="$(brew --prefix)/bin/python3.12" bash scripts/setup-unix.sh
 ```bash
 sudo port install python312 libusb
 /opt/local/bin/python3.12 --version
-PYTHON=/opt/local/bin/python3.12 bash scripts/setup-unix.sh
 ```
 
 See also the [Python macOS guide](https://docs.python.org/3.12/using/mac.html).
@@ -124,10 +131,7 @@ If your distribution supplies a newer Python, use the explicit `PYTHON`
 override below rather than replacing the system Python. The default command
 looks specifically for `python3.12`, not `python3`.
 
-```bash
-python3.12 --version
-bash scripts/setup-unix.sh
-```
+Once these prerequisites are available, continue with project setup below.
 
 ### Windows
 
@@ -137,15 +141,51 @@ then run in PowerShell:
 ```powershell
 pymanager install 3.12
 py -3.12 --version
-Set-ExecutionPolicy -Scope Process Bypass
-.\scripts\setup-windows.ps1
 ```
 
-The script defaults to `py -3.12`; installing Python alone does not install the
+The project setup script defaults to `py -3.12`; installing Python alone does not install the
 Crazyradio driver. Complete the Windows USB steps below separately.
 `pymanager` explicitly selects the install manager, even when an older `py`
 launcher is also installed. Open a new PowerShell window if the command is not
 found immediately after installing the manager.
+
+### Create the project environment
+
+Run this step from the project root even if all prerequisite tools were already
+installed. Select the command for your platform; it creates or reuses `.venv`,
+installs the hardware and simulation requirements, and runs the validator.
+An existing Conda environment, such as `(base)`, is separate from this project's
+`.venv` and does not replace this step.
+
+**macOS with Homebrew:**
+
+```bash
+PYTHON="$(brew --prefix)/bin/python3.12" bash scripts/setup-unix.sh
+```
+
+**macOS with MacPorts:**
+
+```bash
+PYTHON=/opt/local/bin/python3.12 bash scripts/setup-unix.sh
+```
+
+**Linux, or macOS with `python3.12` already on PATH:**
+
+```bash
+python3.12 --version
+bash scripts/setup-unix.sh
+```
+
+**Windows PowerShell:**
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\setup-windows.ps1
+```
+
+Wait for setup to finish successfully before activation. If it fails, keep the
+error output and resolve that error first. Updating the checkout with `git pull`
+preserves an existing environment; rerun setup if the requirements change.
 
 ### Select another Python
 
@@ -168,7 +208,7 @@ so an existing `.venv` is not reused with another Python.
 
 ### Activate and check
 
-In each new terminal, activate the environment:
+After successful project setup, activate the environment in each new terminal:
 
 ```bash
 # macOS/Linux
@@ -180,6 +220,11 @@ source .venv/bin/activate
 Set-ExecutionPolicy -Scope Process Bypass
 .\.venv\Scripts\Activate.ps1
 ```
+
+If activation reports `no such file or directory` or cannot find the script,
+check that the terminal is in the project root. If `.venv` is missing there,
+return to [Create the project environment](#create-the-project-environment).
+Activation selects an existing environment; it does not create one.
 
 The PowerShell policy change lasts only for that terminal; managed policies may
 prevent it. Activation affects only the current terminal on all platforms.
@@ -224,7 +269,7 @@ python -m day1 --output ../day1/setup-check --no-show
 python -m unittest andreas.test_practical
 cd ..
 python -m ipykernel install --sys-prefix --name crazyflie-lectures --display-name "Crazyflie lectures (.venv)"
-jupyter lab code
+jupyter lab
 ```
 
 **Expected:** the simulation writes CSV files, `comparison.png` and
@@ -232,7 +277,9 @@ jupyter lab code
 saved PNG to check that the plots render. Use a new output name, such as
 `day1/setup-check-2`, when repeating the simulation; existing results are preserved.
 
-Open Jupyter's printed URL and the supplied **`andreas/day1_control.ipynb`**.
+Open Jupyter's printed URL and, in its file browser, open
+**`code/andreas/day1_control.ipynb`**. Start Jupyter from the project root as
+shown above so the notebooks can also open links into `docs/`.
 Select the **Crazyflie lectures (.venv)** kernel. Check it by running this in
 a notebook cell:
 
@@ -247,6 +294,13 @@ it from the activated terminal. The kernel-registration command above stores
 this kernel inside the project's environment. Give `run_id` in the notebook's first code cell
 a fresh value before each run, then run the supplied cells. They use simulations
 and the included synthetic replay data. Results appear under `day1/notebook/`.
+
+Days 2 and 3 use the same environment and kernel. When you reach those sessions,
+open [day2/day2_kalman.ipynb](../code/day2/day2_kalman.ipynb) or
+[day3/day3_race.ipynb](../code/day3/day3_race.ipynb) in Jupyter for the scheduled
+filter experiments, trajectory planning and recording analysis. Their default paths
+work offline; live recordings and measured courses can be selected during the
+practicals. There is no extra software installation or pre-lecture assignment.
 
 **Pre-lecture setup is complete** when the validator passes, cfclient opens,
 the simulation/test checks pass and the notebook produces its plots using the

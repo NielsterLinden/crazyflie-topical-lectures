@@ -48,7 +48,7 @@ cd code
 python -m unittest andreas.test_practical
 python -m day1 --output ../day1/baseline --no-show
 cd ..
-jupyter lab code
+jupyter lab
 ```
 
 Use `andreas/day1_control.ipynb` for a guided notebook. It calls the same runner
@@ -232,6 +232,10 @@ certified hardware stability margin.
 
 **Task.** Follow Andreas's motor-disabled stage using the supplied capture/replay
 commands in the [software guide](day_1_software.md#replay-and-motor-disabled-sign-checks).
+Before a hand capture, place the drone down, set/check **Parameters > stabilizer > stop = 1**
+in cfclient, then disconnect and close cfclient without rebooting. Keep clear of
+propellers. After hand checks, power-cycle on the surface and repeat preflight
+checks before flight. The Day 1 runner does not set the stop itself.
 Use one supplied recording if capture is not immediately available. Finish the
 sign/frame check and handover in 20 minutes; do not let connection debugging
 displace the scheduled first hover.
@@ -295,7 +299,7 @@ practical work or in parallel groups.
 | Extension | Task and additional evidence |
 | --- | --- |
 | Moving reference and feed-forward | Use `day1.feedforward` to compare P/PD/reference-acceleration feed-forward under matched limits. Derive its acceleration-command plant, gain units and `a_ref + Kp*e_p + Kv*e_v` before comparing with the Day 1 velocity interface. Separate startup, the 7-10 s disturbance, and recovery; nominal RMS includes startup. |
-| System identification | Fit tilt/acceleration and lag/drag models to compatible, provenance-labelled data. Check the near-level 5.84 deg per m/s2 scale, frame signs, differentiation/smoothing and held-out fit uncertainty. See the software guide; this is additional work, not part of the 25-minute C4 core. |
+| System identification | Fit tilt/acceleration and lag/drag models to data with matching units, frames and recorded calibration. Check the near-level 5.84 deg per m/s2 scale, frame signs, differentiation/smoothing and held-out fit uncertainty. See the software guide; this is additional work, not part of the 25-minute C4 core. |
 | Loop analysis | Derive the appropriate velocity/tilt plant, Bode response and margins, then compare sampling/lag and nonlinear limiting effects. |
 | Estimated-state control | Replace ideal state inputs with the Day 2 estimate; compare bias, noise/dropout, estimator lag and actual closed-loop truth. This needs an explicit coupled harness; fixed replay is not a controller-performance test. |
 | [LQR/LQG](glossary.md#lqr-and-lqg) or [MPC](glossary.md#mpc) | Define model, cost units and command interface; compare effort, constraints, timing and failure rates against the simpler controller without equating Kalman Q/R with controller costs. |

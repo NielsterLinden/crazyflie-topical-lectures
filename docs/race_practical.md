@@ -46,6 +46,12 @@ with shared recordings. We can learn from that analysis without completing a lap
 
 ## Preparation
 
+The [Day 3 notebook](../code/day3/day3_race.ipynb) uses the trajectory planner and
+post-flight analysis tools for the same exercises. Use the team's measured
+course and gates, and save the notebook with the exported plan. Its offline
+default demonstrates the format only; the flight checks and separate flight
+procedure below remain unchanged.
+
 Use the native environment and the controller/estimator configurations selected
 on Days 1 and 2. Confirm the team's assigned [radio URI](glossary.md#radio-uri), firmware/decks, sensor
 calibration, code revision, and available logging channels. Keep simulation and
@@ -90,8 +96,10 @@ finish time. No team assumes different safety limits to gain an advantage.
 Share collection/checking roles and survey files rather than queueing for a
 separate complete survey by every team.
 
-1. Run `scripts/measure_hoop.py` on the assigned drone with motors disabled and
-   propellers removed or a secure restraint preventing propeller contact.
+1. Place the drone on a stable surface, clear of propellers, and run
+   `scripts/measure_hoop.py` on the assigned URI. Confirm `STOP AND SURVEY` and
+   wait for **STOP VERIFIED**: the tool sets `stabilizer.stop=1` and verifies the
+   lock and zero motor outputs before you pick up the drone.
    Trace the inner opening using
    a position-referenced pointer/jig and retain the fitted JSON and sample points.
 2. Check centre, normal sign and aperture against manual measurements or a
@@ -203,7 +211,8 @@ team's go/no-go decision. The pilot and a second team member cross-check the
 flight-critical items before starting; all four participants agree before each
 stage transition.
 
-1. With motors disabled, check the assigned radio identity, connection, frames,
+1. For hand-held measurements, use the [firmware-stop preparation](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording).
+   Check the assigned radio identity, connection, frames,
    units, sensor calibration, stable estimation, command interface, telemetry,
    and emergency-stop procedure. Confirm raw/derived channel labels.
    Recheck the [flight-ready mass and controller assumptions](practical_workflow.md#hardware-preflight-mass-and-controller-assumptions)
@@ -212,7 +221,9 @@ stage transition.
 2. Review survey validation, full path, limit checks, logs, and simulation
    failures together within the team. Keep onboard attitude stabilization active.
 3. Once these checks pass and before racing, try a short, low-speed test flight in the
-   Lighthouse flight area to check tracking and landing. Record whether actual
+   Lighthouse flight area. After survey/hand-held work, place the drone down and
+   power-cycle it to clear the firmware lock, then repeat the preflight checks.
+   Check tracking and landing. Record whether actual
    crossings and tracking agree with the planned course. Do not tune unstable
    gains during flight.
 4. Freeze code/configuration IDs and select full, estimation-only, or conservative

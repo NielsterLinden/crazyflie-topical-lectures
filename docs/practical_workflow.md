@@ -5,8 +5,8 @@ We use these conventions across the [controller](controller_practical.md),
 so we can compare results and help each other reproduce them.
 
 Keep **one shared team notebook or notes file**, with at most one page per day
-plus links to plots and saved outputs. No separate exercise reports, custom
-manifest or manually compiled metrics tables are required. The short daily
+plus links to plots and saved outputs. The software saves settings and results;
+link those files rather than copying them into separate reports. The short daily
 templates offer optional prompts for that same notebook. Most checks can be
 shown or discussed while we work. Preflight, calibration and flight records are
 working/safety data and remain separate from this short write-up.
@@ -167,23 +167,23 @@ not needed to complete this exercise. Without hardware, use instructor-supplied
 mass/configuration data, mark the source and unperformed checks, and retain them
 as outstanding preflight requirements rather than claiming hardware verification.
 
-## Reproducibility manifest
+## Information needed to repeat a comparison
 
 In your notes, link the code/settings, commands, data source and seed needed to
 repeat the comparison. Keep calibration values, units, frames and uncertainty
 with the data, and note supplied recordings or missing measurements. Reuse the
 runner's automatic settings/metadata files rather than transcribing them.
 
-No `manifest.json` is required. If useful for a larger experiment, the following
-fields can form an optional manifest; no submission tool parses it:
+For a larger experiment, the table below offers optional prompts for information
+to keep alongside the results. Use the entries relevant to your experiment.
 
 | Group | Required information where applicable |
 | --- | --- |
 | Identity | Team, run IDs, configuration IDs, active profile, and readiness decision. |
-| Source | Code revision and any dirty diff; simulation, reference, plant, or analysis modifications needed to reproduce the result. |
+| Source | Code revision and any uncommitted changes; simulation, reference, plant, or analysis modifications needed to repeat the result. |
 | Runtime | Python, dependency versions, and reproduction commands from a stated working directory. |
 | Experiment | Scenario/data IDs, dt, acquisition/sample rates, metric windows/conventions, seeds, noise/disturbance/delay settings, and configuration paths. |
-| Hardware | Drone/radio identity and URI, firmware/decks/cage/battery configuration, measured total mass in g/kg and scale resolution, selected controller and mass-setting applicability, previous/current/stored mass values and reboot verification, calibration ID, world-frame/geometry version, survey provenance, and operator roles. |
+| Hardware | Drone/radio identity and URI, firmware/decks/cage/battery configuration, measured total mass in g/kg and scale resolution, selected controller and mass-setting applicability, previous/current/stored mass values and reboot verification, calibration ID, world-frame/geometry version, how and when the gates were measured, and operator roles. |
 | Data | Raw logs/observations or stable accessible locations, origin, SHA-256 hashes, and whether acquired by the team or supplied by instructors. |
 | Qualification | Exact checked code/configuration/course IDs, team members/time, completed checks, readiness decision, remaining limitations, and fallback/abort conditions. |
 

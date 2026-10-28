@@ -11,7 +11,8 @@ We compare speed, repeatability and valid crossings across runs.
 [Indico event 8196](https://indico.nikhef.nl/event/8196/),
 5 November 2026, Europe/Amsterdam. Timed competition starts at
 **T = 14:00**. Instructors confirm the timetable and shared flight slots before
-R1; changes to T require publishing the corresponding freeze times too.
+R1. If the start time changes, update the deadlines for estimator and controller
+changes as well.
 
 | Time | Activity |
 | --- | --- |
@@ -39,6 +40,12 @@ We compare other results during practical work or in parallel groups.
 
 ## Practical sessions
 
+Use the [Day 3 notebook](../code/day3/day3_race.ipynb) in the same Jupyter
+environment as Days 1-2 to construct trajectories from measured gates, compare
+planning choices and analyse flight recordings. Use the team's surveyed inputs;
+its default synthetic course is for offline exploration. Physical checks,
+survey acquisition and flight still use the procedures linked below.
+
 The [R1-R7 worksheet](race_practical.md) offers a route through the race practical,
 with [shared conventions](practical_workflow.md); the [short notes template](templates/race_report.md)
 is optional.
@@ -59,7 +66,7 @@ Use Day 1's response, saturation and sign/frame checks, and Day 2's calibration
 and uncertainty results. Mind the interface: the conservative race runner sends
 position setpoints; Andreas's position loop produces velocity. Do not copy gains
 between these layers. A new racing line or continuous reference needs its own
-limit and adapter checks; Day 1's tests did not simulate the race.
+checks of its limits and how commands reach the drone; Day 1's tests did not simulate the race.
 
 Agree the rules, measure and check the gates with the [supplied survey tool](hoop_survey_challenge.md),
 compare strategies in simulation, and qualify the chosen controller/estimator.
@@ -113,7 +120,8 @@ Day 2's E1/E3-E5 simulations and E6 live/replayed data run the participant
 filter on the laptop, without changing the onboard estimator. E2's calibration
 checks identify sensor limitations; saved Python corrections and Q/R settings
 are **not automatically applied to firmware**. E7 uses uncertainty to motivate
-clearance/speed choices; implementing them in live control needs a qualified adapter.
+clearance/speed choices; using them during flight needs tested code connecting
+the estimator to the flight commands.
 
 Bring those findings into R3/R4: choose defensible margins, compare candidate
 references and identify dropout/outlier risks. Changing the replay filter alone
@@ -123,14 +131,14 @@ actually consumes it. Onboard estimates used as replay inputs remain fused,
 correlated data, not independent raw measurements or position truth.
 
 Putting the participant filter in the live feedback path is an optional extension:
-it needs an explicit adapter, frame/unit and timing checks, coupled closed-loop
+it needs an [adapter](glossary.md#adapter-and-runner), frame/unit and timing checks, coupled closed-loop
 tests and separate low-speed qualification before the freeze. The onboard
 attitude loop stays active. Keep the qualified baseline if that work is not ready;
 there is no requirement to replace the firmware Kalman filter for the race.
 
 ## Freeze points and fallback
 
-Apply the [R5 qualification and freeze policy](race_practical.md#r5-qualify-and-freeze-the-race-configuration).
+Follow the [R5 flight checks and configuration deadlines](race_practical.md#r5-qualify-and-freeze-the-race-configuration).
 Its deadlines are relative to the scheduled timed competition, not qualification
 flights. The [race profiles](../code/race_common/README.md#fallback-profiles)
 describe conservative, estimation-only, and full operation. Instructor fallback

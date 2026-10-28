@@ -158,7 +158,7 @@ Label supplied data, missing measurements and the first-hover outcome; keep tuni
 At the closing discussion, compare position, velocity and integral feedback:
 what worked, what failed, and why? First-hover observations and reasons for not
 flying are both useful; a justified no-flight decision is not a failed exercise.
-Feed-forward and the acceleration-command scaffold lead into Day 3's continuous
+Feed-forward and the acceleration-command example lead into Day 3's continuous
 trajectories. [Loop margins](glossary.md#bandwidth-and-loop-margins),
 [LQR/LQG](glossary.md#lqr-and-lqg) and [MPC](glossary.md#mpc) are optional; the simpler controller
 and qualified fallback remain available.

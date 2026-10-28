@@ -22,13 +22,16 @@ remaining residuals. Keep calibration and validation recordings separate.
 
 ## Safety and preparation
 
-Before recording, agree the [channel, timestamp and replay contract](sensor_recording_contract.md)
+Before recording, check the [channel, timestamp and replay instructions](sensor_recording_contract.md)
 within the team. It lists cfclient log blocks, raw/derived labels, supported
 subsets, and the metadata accompanying supplied recordings. Day 1 state-estimate
 logs alone are not the raw-sensor acquisition required here.
 
-- Motors must remain disabled throughout measurement acquisition. Remove
-  propellers or use a secure restraint that prevents propeller contact.
+- Before cfclient acquisition, place the drone down and connect cfclient. In
+  **Parameters > stabilizer > stop**, enter `1`, press Enter and check the displayed
+  value and stationary propellers. Leave this firmware stop engaged throughout
+  acquisition; keep clear of fitted propellers. See the [recording preparation](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording),
+  including the power-cycle and preflight checks before returning to flight.
 - Inventory every available sensor and record its units, axes, frame, update
   rate, and exact firmware log name from the cfclient [Log TOC](glossary.md#telemetry-and-log-toc).
 - Record firmware, deck configuration, surface, lighting, temperature, and
@@ -48,7 +51,7 @@ assumption and label it. Full calibration of every sensor is further work.
 | Minutes | Activity | Result |
 | --- | --- | --- |
 | 0-5 | Inventory the installed sensors and identify gyro/acceleration channels, units, frame and existing onboard corrections. | A short channel/reference list; mark other sensors as checked, supplied-data only, unavailable or not studied. |
-| 5-15 | With motors disabled, record 60 s at rest for calibration and a separate 60 s at rest for validation, using the same mounting and conditions. | Two labelled recordings, or the checked supplied pair if acquisition is blocked. |
+| 5-15 | With `stabilizer.stop=1` set and checked in cfclient, record 60 s at rest for calibration and a separate 60 s at rest for validation, using the same mounting and conditions. | Two labelled recordings, or the checked supplied pair if acquisition is blocked. |
 | 15-30 | Inspect the stationary IMU signals; estimate per-axis gyro bias and covariance from the calibration recording. Predict whether an additional correction is justified. | Bias/noise estimates, one comparison plot and a stated correction decision. |
 | 30-40 | Apply that decision to the separate validation recording without refitting. Compare its residual mean and spread before/after. | Held-out evidence, including a failed correction if that is the result. |
 | 40-45 | Save the values and limitations, agree which data/model to use for E3, and move on. | The completion check below and links in the team's shared notes. |

@@ -17,6 +17,7 @@ from scipy.spatial.transform import Rotation
 from kalman.filter import FilterConfig
 from kalman.recording import ACCELERATION_COLUMNS, POSITION_COLUMNS, ReplayFilter
 from .replay import save_results
+from race_common.motor_stop import engage_motor_stop
 
 
 GRAVITY = 9.80665
@@ -83,7 +84,7 @@ class SampleAssembler:
         self.last_event_ms[stream] = timestamp_ms
         if stream == "motors":
             if np.any(values != 0):
-                raise ValueError("motor outputs are nonzero; stop the experiment and disable motors")
+                raise ValueError("motor outputs are nonzero despite firmware stop; leave the drone on a safe surface and stop the experiment")
             self.motors = timestamp_ms
             return None
         if stream == "attitude":
@@ -242,9 +243,14 @@ def collect(session, uri, duration_s, no_show):
         return receive
 
     cflib.crtp.init_drivers()
-    print(f"Connecting to {uri}; no flight or parameter commands will be sent")
+    print(f"Connecting to {uri}; engaging firmware stop before hand-held recording", flush=True)
     with SyncCrazyflie(uri, cf=Crazyflie()) as connection:
         cf = connection.cf
+        connection.wait_for_params()
+        session.metadata["motor_stop_check"] = engage_motor_stop(cf)
+        session.write_metadata()
+        print("STOP VERIFIED: firmware locked, four motor outputs zero. "
+              "Hand-held recording may begin; keep clear of propellers.", flush=True)
         missing = [name for names in CHANNELS.values() for name in names
                    if cf.log.toc.get_element_by_complete_name(name) is None]
         if missing:
@@ -327,11 +333,12 @@ def main(argv=None):
     parser.add_argument("--position-std", type=float, default=.04)
     parser.add_argument("--comparison-position-std", type=float, default=.12)
     parser.add_argument("--acc-bias-g", type=float, nargs=3, default=(0, 0, 0), metavar=("BX", "BY", "BZ"), help="Additional validated body-axis bias to subtract, in g; do not subtract onboard correction twice")
-    parser.add_argument("--motors-disabled", action="store_true", help="Confirm motors disabled and propellers removed or approved restraint")
+    parser.add_argument("--prepare-for-handling", "--motors-disabled", dest="prepare_for_handling",
+                        action="store_true", help="Confirm drone is on a stable surface, clear of propellers; helper engages and verifies firmware stop")
     parser.add_argument("--no-show", action="store_true", help="Save outputs without a live GUI")
     args = parser.parse_args(argv)
-    if not args.uri or not args.motors_disabled:
-        parser.error("set CF_URI or --uri and confirm --motors-disabled; remove propellers or use approved restraint")
+    if not args.uri or not args.prepare_for_handling:
+        parser.error("set CF_URI or --uri; place the drone on a stable surface, keep clear of propellers, and confirm --prepare-for-handling")
     if not math.isfinite(args.duration) or not 1 <= args.duration <= 600:
         parser.error("--duration must be between 1 and 600 seconds")
     if any(not math.isfinite(value) or value <= 0 for value in (args.position_std, args.comparison_position_std)):
@@ -359,7 +366,7 @@ def main(argv=None):
     figure.savefig(args.output / "live-comparison.png", dpi=150)
     plt.close(figure)
     print(f"Saved replayable input, two filter outputs and comparison to {args.output}")
-    print("Cascaded estimation only: no motor, parameter or estimator-selection commands sent.")
+    print("Firmware stop remains engaged. Place the drone down and power-cycle before flight/preflight checks.")
     return 0
 
 

@@ -1,4 +1,4 @@
-# Course and qualified-flight interface
+# Course files and flight commands
 
 This guide describes the shared course file format and flight-tool interface.
 The [survey guide](hoop_survey_challenge.md) covers gate measurements.
@@ -16,7 +16,8 @@ this format; its polynomial reference is not automatically the runner's path.
 
 ## What instructors provide, and when
 
-If offering optional powered work after Day 1 C7, agree a run card identifying the tested flight
+If offering optional powered work after Day 1 C7, agree a
+[run card](glossary.md#run-card-and-configuration-freeze): a short record of the tested flight
 interface, command units, actual controller/estimator, operator and stop path.
 For Andreas's Day 1 position-loop experiment, it also identifies the qualified
 velocity-command launcher/sequence, fixed-yaw/world-to-body mapping, transfer
@@ -24,11 +25,12 @@ between controllers with a continuous command at the switch
 ([bumpless handover](glossary.md#bumpless-handover)), step bounds and
 returned state/command recording. That experiment is
 not the position-setpoint course launcher below. Without a qualified Day 1
-launcher, complete the motor-disabled hand check or supplied-data replay and
+launcher, complete the hand check using the [firmware-stop preparation](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording)
+or supplied-data replay and
 record powered application as outstanding. There is no expectation to build a
 new launcher for this event; simulation and replay cover the core.
 Before Day 2 E2/E6, share one reusable [recording pack](sensor_recording_contract.md).
-Before Day 3 R1, make the existing qualified runner available on a shared laptop (or
+Before Day 3 R1, make the checked flight program available on a shared laptop (or
 separately supplied tools), its exact launch command/version, the limits, race
 rules and times. These are event-specific resources, **not files in the participant
 ZIP**. No public reference implementation or survey answer is required.
@@ -54,8 +56,8 @@ insufficient. Only one radio client controls a drone at a time.
 **Before R2 acquisition**, try your candidate JSON with the shared dry-run launcher;
 teams can help each other check its structure. Fix format mismatches before
 surveying; successful validation does not qualify synthetic or measured geometry.
-Missing tools, limits or run card block powered qualification, not simulation
-learning. Record the missing dependency and use a tested shared fallback
+If the flight program, limits or run card are missing, continue with simulation
+or recordings. Note what is missing and use a tested shared alternative
 or supplied recordings. The starter's named profiles are configuration labels,
 not implementations of this launcher.
 
@@ -133,7 +135,7 @@ emergency stop. An uploaded onboard trajectory is a different execution path
 requiring its own qualification and run-card description.
 An offboard filter can be assessed in shadow mode without changing flight.
 Using a participant controller/observer to drive hardware requires a separately
-documented and qualified adapter, including rate, timing, limits and aborts;
+documented and tested [adapter](glossary.md#adapter-and-runner), including rate, timing, limits and aborts;
 selecting a profile string does not create one.
 
 The operator returns the exact course, settings/run card, console events and CSV
@@ -143,5 +145,6 @@ include `firmware_timestamp_ms,roll_deg,pitch_deg`; `command` rows contain
 `command_x_m,command_y_m,command_z_m,phase`. Phases distinguish takeoff, race and
 landing. Command rows describe sent commands; rejected references must not be
 mislabelled as sent. Separate diagnostic rows may add sensor/power channels.
-Firmware and laptop timestamps are different clocks. Preserve their provenance;
-do not infer independent physical accuracy or official race time from these alone.
+Firmware and laptop timestamps use different clocks. Record which clock each
+timestamp uses and how the clocks were aligned. Use separate observations to
+check physical accuracy and the agreed timing method for race results.

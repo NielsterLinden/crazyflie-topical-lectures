@@ -1,5 +1,9 @@
 # Crazyflie Topical Lectures
 
+The [course project](https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures/)
+is the starting point for the lectures. This README links the installation
+guide, the three daily programmes, exercises and supporting material.
+
 **Topic:** We use hands-on drone experiments to study feedback control and
 Kalman filtering. Along the way, we connect these ideas to particle-physics
 tracking and gravitational-wave instrumentation.
@@ -20,32 +24,31 @@ The [practical glossary](docs/glossary.md) explains terminology used in the guid
 
 Open **Terminal** on macOS/Linux or **PowerShell** on Windows. With Git installed,
 run each line below separately. This downloads the course into a new
-`crazyflie-lectures` folder inside your home folder:
+`crazyflie-topical-lectures` folder inside your home folder:
 
 ```text
 git --version
 cd "$HOME"
-git clone --branch course --single-branch https://gitlab.com/topical2/crazyflie-lectures.git
-cd crazyflie-lectures
+git clone --branch course --single-branch https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures.git
+cd crazyflie-topical-lectures
 ```
 
-The `course` branch contains the notes and exercise code. Cloning needs no GitLab
-account, access token or SSH key. Continue with the [installation guide](docs/software_setup.md)
+The `course` branch contains the notes and exercise code. While the repository
+is private, you need a Nikhef GitLab account with access; a public repository
+can be cloned without logging in. Continue with the [installation guide](docs/software_setup.md)
 from this folder to install Python and the libraries.
 The [step-by-step cloning guide](docs/course_git.md#clone-the-course) covers installing
-Git, checking the download and using an existing clone. You can also
-[browse the course repository](https://gitlab.com/topical2/crazyflie-lectures/-/tree/course).
+Git, checking the download and using an existing clone.
 
 ## Prerequisites
 
 No prior drone experience is assumed. Bring a laptop and follow the
 [installation guide](docs/software_setup.md) before the lectures: clone the
-[public course repository](https://gitlab.com/topical2/crazyflie-lectures/-/tree/course),
-install the Python environment, and run the software-only
+repository, install the Python environment, and run the software-only
 checks. You can do these checks without a drone or radio. We check the hardware
 connections together during Day 1.
 
-Cloning and fetching the repository need no GitLab login. The
+The
 [Git guide](docs/course_git.md) explains how to keep your team's work on a branch,
 merge course updates and share improvements through a fork and merge request.
 The native Python environment supports cfclient, simulations and notebooks. Docker is an optional
@@ -100,7 +103,7 @@ describe these responsibilities and when to stop.
 
 ## About this release
 
-Release **0.0.11** contains exercises, theory notes, starter code, setup
+Release **0.0.12** contains exercises, theory notes, starter code, setup
 scripts, and offline trajectory analysis. Organizers provide any tested
 flight fallback and recordings separately. The starter does not implement a
 complete flight runner. Package versions are pinned for reproducible experiments.

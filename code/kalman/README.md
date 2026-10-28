@@ -16,4 +16,4 @@ in [day2](../day2/README.md).
 From `code/`, run `python -m unittest kalman.test_filter`.
 For the learner-facing baseline, run `python -m day2.simulate`.
 The [worksheet](../../docs/kalman_filter_practical.md) explains conventions,
-calibration, live/cooked paths and uncertainty interpretation.
+calibration, live measurements, prepared recordings and uncertainty interpretation.

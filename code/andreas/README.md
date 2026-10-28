@@ -13,13 +13,13 @@ cd code
 python -m unittest andreas.test_practical
 python -m day1 --output ../day1/baseline --no-show
 cd ..
-jupyter lab code
+jupyter lab
 ```
 
 The notebook contains simulation and offline replay only. The runner also offers
 a separately confirmed motor-disabled hand capture; none of its modes sends
 flight commands. See the guide for assigned radio, restraint, frame and logging
-requirements, real-data replay, and the supervised operator handoff.
+requirements, real-data replay, and how the team prepares for a supervised flight.
 
 | File | Purpose |
 | --- | --- |

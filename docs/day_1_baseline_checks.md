@@ -9,7 +9,7 @@ Start with the supplied baseline configuration and preserve it for comparison.
 Check and document corrections to identified setup errors; do not optimize gains,
 thrust scaling, estimator noise settings, or safety thresholds during these checks.
 Detailed sensor-bias/noise calibration belongs to Day 2.
-Its [recording contract](sensor_recording_contract.md) adds the raw/derived sensor
+Its [recording guide](sensor_recording_contract.md) adds the raw/derived sensor
 channels and timing metadata not covered by this Day 1 baseline log.
 
 Use the opening software-verification slot for connection and identity, then
@@ -61,6 +61,13 @@ inventory, parameter snapshot, geometry ID, and any mismatch or warning.
 
 ## B3: create and save cfclient logs
 
+For stationary and hand-held measurements, place the drone on the surface and
+connect cfclient. In **Parameters > stabilizer > stop**, enter `1`, press Enter,
+check the displayed value and visually check stationary propellers. Keep this
+stop engaged during B3-B4 and follow the [hand-held recording preparation](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording).
+The same log configurations can later be used for flight after the power cycle
+and preflight checks below.
+
 1. In **Log TOC**, find the channels below and inspect their units/types. Missing
    channels are recorded as unavailable, not replaced with zeros. Investigate
    firmware-specific alternatives together before powered work.
@@ -101,7 +108,8 @@ state estimates as estimates, not raw sensor data or independent truth.
   estimated velocity and yaw over the recorded interval. Report variability,
   apparent drift and any continuing oscillation; avoid inferring a sensor bias
   from one fused-state trace alone.
-- Using a ruler or marked fixture, move the unarmed drone by a known displacement
+- With `stabilizer.stop=1` set and checked as above, use a ruler or marked positions
+  to move the drone by a known displacement
   along each world axis, returning to a stationary hold at each endpoint. Record
   at least 5 s per endpoint, expected sign/distance, and uncertainty. Compare
   endpoint means with the independent displacement, including vertical motion.
@@ -147,7 +155,8 @@ These checks supplement the firmware protections. The operator monitors them;
 the lecture scripts are not assumed to enforce them automatically.
 
 For charging, connect the battery to the Crazyflie and use its onboard USB
-charger, keeping the propellers clear and motors disabled. The rear-left blue
+charger. On the surface, connect cfclient and set/check **Parameters > stabilizer > stop = 1**;
+leave it engaged and keep propellers clear. The rear-left blue
 LED blinks while charging and becomes steady when charging completes. Then
 disconnect USB, wait 60 s with motors stopped and check `pm.vbat` again. Use
 the designated nonflammable charging surface, keep packs clear of loose metal
@@ -165,6 +174,9 @@ During the [scheduled first-hover session](day_1_control.md#first-hover-1545-163
 once your team has completed B1-B4 and verified the B6 limits:
 
 1. Clear the flight volume and have the named emergency-stop operator ready.
+   After the firmware-stop measurements/charging, place the drone down and
+   power-cycle it to clear the lock. Reconnect cfclient and repeat the preflight
+   checks; setting `stabilizer.stop` back to `0` does not unlock it.
    Start recording Pose, Velocity, Power and Motors.
 2. Use **Flight Control > Command Based Flight > Take off** to the altitude
    agreed for the flight area.

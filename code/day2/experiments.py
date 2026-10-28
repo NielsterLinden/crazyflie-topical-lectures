@@ -30,7 +30,45 @@ class ExperimentCase:
     participant_stationary: bool = False
 
 
-def run_experiment(data: ExperimentData, case: ExperimentCase, alpha: float = 0.01) -> dict:
+def validate_position_dropout(data: ExperimentData, case: ExperimentCase) -> None:
+    """Ensure the intended intervention removes updates and shows recovery."""
+    if case.dropout_s == 0:
+        return
+    if not np.isfinite(case.dropout_s) or case.dropout_s < 0:
+        raise ValueError("dropout duration must be finite and nonnegative")
+    start, end = 7.0, 7.0 + case.dropout_s
+    recovery_end = end + 2.0
+    fallback = ("Use a checked recording covering the interval (normally a 30 s capture), "
+                "or explicitly select the synthetic fallback for E5.")
+    if data.time[-1] < recovery_end - 1e-9:
+        raise ValueError(f"Position-dropout comparison needs data through {recovery_end:g} s "
+                         f"for loss and recovery. {fallback}")
+    observed = np.all(np.isfinite(data.measured_position), axis=1)
+    if data.has_truth:
+        observed &= np.array([sensor_available("position", index, timestamp, case.disabled, 0)
+                              for index, timestamp in enumerate(data.time)])
+    else:
+        observed[0] = False  # The first position initializes the recorded-data estimate.
+        if "position" in case.disabled:
+            observed[:] = False
+    windows = (("before", data.time < start),
+               ("during", (data.time >= start) & (data.time <= end)),
+               ("after", (data.time > end) & (data.time <= recovery_end)))
+    for name, window in windows:
+        if np.count_nonzero(observed & window) < 2:
+            raise ValueError(f"Position-dropout comparison needs at least two source position "
+                             f"updates {name} the {start:g}-{end:g} s gap. {fallback}")
+
+
+def run_experiment(data: ExperimentData, case: ExperimentCase, alpha: float = 0.01,
+                   *, innovation_policy=None, stationary_policy=None) -> dict:
+    validate_position_dropout(data, case)
+    # Notebook cells can supply the same decisions as exercise_policies.py,
+    # without changing module globals or the command-line experiment runner.
+    if innovation_policy is None:
+        innovation_policy = exercise_policies.innovation_threshold
+    if stationary_policy is None:
+        stationary_policy = exercise_policies.stationary_update_allowed
     estimator = PositionVelocityKalmanFilter(replace(case.config))
     # Declared starting-height prior, identical for every case. Its uncertainty
     # is still initial_position_std; subsequent states never use simulation truth.
@@ -49,7 +87,7 @@ def run_experiment(data: ExperimentData, case: ExperimentCase, alpha: float = 0.
         dimension = np.size(measurement)
         threshold = case.config.nis_gate
         if case.participant_gate:
-            threshold = exercise_policies.innovation_threshold(dimension, alpha)
+            threshold = innovation_policy(dimension, alpha)
         if threshold is not None and (not np.isfinite(threshold) or threshold <= 0.0):
             raise ValueError("the innovation policy must return a positive finite threshold or None")
         estimator.config.nis_gate = threshold
@@ -86,7 +124,7 @@ def run_experiment(data: ExperimentData, case: ExperimentCase, alpha: float = 0.
                     flow_samples.append((float(timestamp), measurement.copy()))
         if data.scenario == "stationary":
             window = stationary_features(data, sample, flow_samples)
-            requested = case.participant_stationary and exercise_policies.stationary_update_allowed(window)
+            requested = case.participant_stationary and stationary_policy(window)
             stationary_records.append(dict(time_s=float(timestamp), **asdict(window),
                                            requested=bool(requested),
                                            truly_stationary=bool(np.linalg.norm(data.velocity[sample]) < 1e-9)))
@@ -474,8 +512,8 @@ def main(argv=None) -> int:
         if args.recording is not None:
             for scenario in dict.fromkeys(case.scenario for case in cases):
                 datasets_from_recording[scenario] = load_prepared_data(args.recording, args.metadata, scenario)
-            if args.study == "dropout" and next(iter(datasets_from_recording.values())).time[-1] < 15.0:
-                raise ValueError("dropout comparison needs at least 15 s for loss and recovery; use the checked 30 s recording or synthetic fallback")
+            for case in cases:
+                validate_position_dropout(datasets_from_recording[case.scenario], case)
         args.output.mkdir(parents=True, exist_ok=False)
         summaries, runs = [], []
         export_data = None

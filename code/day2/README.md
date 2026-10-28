@@ -1,10 +1,41 @@
 # Day 2: estimation experiments
 
-This is the Day 2 front end: experiment recipes, live capture, replay, plots and
+This package runs the Day 2 experiments: live capture, replay, plots and
 the two small participant decisions. The reusable filter lives in
 [kalman](../kalman/README.md); gate geometry and race policies live in
 [race_common](../race_common/README.md). Start with the
 [E1-E7 worksheet](../../docs/kalman_filter_practical.md).
+
+## Guided notebook
+
+Open [day2_kalman.ipynb](day2_kalman.ipynb) in Jupyter, using the same
+**Crazyflie lectures (.venv)** kernel as Day 1. From the project root:
+
+```text
+jupyter lab
+```
+
+The notebook covers E1-E7: prediction and update, sensor calibration, Q/R choices,
+outlier rejection, stationary updates and analysis of recorded data.
+An optional cell runs the existing motor-free logger for 60 seconds, with a
+90-second overall timeout including connection and saving. First follow the
+[hand-held recording preparation](../../docs/sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording):
+place the drone down, close radio clients, and select the assigned URI. The logger
+sets `stabilizer.stop=1`, verifies the locked state and zero motor outputs, and
+prints **STOP VERIFIED** before you pick up the drone. Keep clear of fitted
+propellers. The stop stays engaged afterwards; power-cycle on the surface and
+repeat preflight checks before flight. The cell
+shows the saved comparison and selects the successful capture for later cells.
+Open `code/day2/day2_kalman.ipynb` from Jupyter's file browser. Keeping the project
+root visible also makes its worksheet and safety-guide links accessible.
+Use a fresh capture name on a repeat. Failed or interrupted captures preserve
+partial files and require an explicit fallback choice.
+Saved recordings and the default offline simulation remain available. Choose a fresh
+`run_id` for a new full session and rerun setup. Within a session, edit and rerun
+E3-E6 cells directly: each creates a numbered folder such as `E4/attempt-002/`,
+preserving earlier results and the selected recording. Save the edited notebook.
+It covers the same exercises and time slots as the command-line route below;
+use either route rather than doing both.
 
 Activate the environment using the [installation guide](../../docs/software_setup.md#activate-and-check).
 From the package root:
@@ -79,10 +110,13 @@ provides the other commands and time budgets. The runner handles sensor
 scheduling, matched noise draws, fault scenarios, diagnostics, plotting and
 metrics. Participants choose Q/R, implement `innovation_threshold()` and
 `stationary_update_allowed()` in `exercise_policies.py`, then explain the results.
-The two starter functions deliberately disable gating and ZUPT. Use
+The notebook passes its decision functions directly to the same experiment code.
+For command-line work, put them in `exercise_policies.py`. Both starters
+deliberately disable gating and ZUPT. Use
 `--check-policies E4` or `--check-policies E5` to check an edit; these checks
 report failures until the corresponding decision is implemented. The ordinary
-infrastructure unit tests pass with the unfinished starter functions.
+software tests pass with the unfinished starter functions; they check the
+supplied tools rather than your E4/E5 decisions.
 
 Each **new** output directory contains:
 
@@ -112,6 +146,10 @@ Each **new** output directory contains:
 noise stays fixed. `--scenario` selects nominal, dropout, position outlier,
 range step, manoeuvre/input delay or rest/motion data. `--disable position flow`
 removes those updates; unavailable flow also removes the stationary motion cue.
+Position-dropout studies require source position observations before, during and
+after the intended gap, and at least two seconds for recovery. Short or already
+missing-data recordings are rejected before a comparison is saved. Use the
+checked 30-second capture or explicitly choose synthetic input instead.
 
 IMU samples are 50 Hz, position/range 10 Hz, and flow 25 Hz. The synthetic IMU
 is level and nonrotating; range is a direct world-height proxy. Truth follows
@@ -125,8 +163,9 @@ not a closed-loop flight simulation or a hardware stationary detector.
 
 `--export-prepared` additionally writes a declared synthetic `prepared.csv` and
 `recording.json` for the first case/seed, usable by the E6 replay helper. This
-provides a meaningful cooked fallback when a checked real recording is unavailable;
-its provenance remains synthetic, with hardware calibration/validation outstanding.
+provides prepared simulated data when a checked real recording is unavailable.
+The metadata identifies them as synthetic; hardware calibration and validation
+still need real measurements.
 
 ## Files and participant changes
 
@@ -147,7 +186,7 @@ It uses the same estimation baseline, with gate geometry and speed decisions
 added in the Day 3 front end. The recommended speed does not change prescribed
 truth motion, so it cannot establish lap-time improvements.
 
-For E6, use `python -m day2.live` with the assigned URI, `--motors-disabled`
+For E6, use `python -m day2.live` with the assigned URI, `--prepare-for-handling`
 and a new output directory, or `python -m day2.replay` with prepared input and
 metadata. The [worksheet](../../docs/kalman_filter_practical.md#e6-compare-filters-on-live-drone-data)
 provides full commands, fallback paths and a time budget. Neither commands motors.

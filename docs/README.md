@@ -14,8 +14,8 @@ We compare results as we work. One shared team notebook or notes file is enough:
 at most one page per day plus links to outputs; no separate exercise reports
 are needed. The [shared conventions](practical_workflow.md) help others repeat
 your comparisons. The
-[qualification and freeze policy](race_practical.md#r5-qualify-and-freeze-the-race-configuration)
-applies to all physical flight, including a fallback supplied by instructors.
+[flight checks and deadlines for configuration changes](race_practical.md#r5-qualify-and-freeze-the-race-configuration)
+apply to all physical flight, including a fallback supplied by instructors.
 The [team responsibilities](practical_workflow.md#responsibility-for-the-experiment)
 describe the four-person cross-checks, shared decisions and flight roles.
 
@@ -34,8 +34,15 @@ software reference page before starting.
 | Day 2 E2-E6 | [Sensor calibration](sensor_bias_calibration_exercise.md), the relevant [recording instructions](sensor_recording_contract.md) and [experiment commands](../code/day2/README.md). |
 | Day 3 R1-R7 | [Course/runner interface](course_interface.md), [gate survey](hoop_survey_challenge.md), [trajectory construction](trajectory_construction.md) and [post-flight analysis](post_flight_analysis.md). |
 
-Consult the [glossary](glossary.md) when a term is unfamiliar. Safety, recording
-provenance and flight checks are part of the practical work, including when a
+The [Day 2 notebook](../code/day2/day2_kalman.ipynb) and
+[Day 3 notebook](../code/day3/day3_race.ipynb) run the filter experiments, trajectory
+planning and recording analysis in the same Jupyter environment as Day 1.
+They are an alternative to the CLI commands, not extra work. Day 2 offers
+a bounded motor-free capture cell with explicit handling checks and an offline
+fallback. Flight uses the separate checked runner.
+
+Consult the [glossary](glossary.md) when a term is unfamiliar. Record where your
+data came from and complete the handling and flight checks, including when a
 fallback is used. The longer notes below are optional reading, not additional
 preparation or submissions.
 
@@ -83,8 +90,8 @@ reading assignment.
 - [Day 1 controller experiments](day_1_software.md): controller models,
   guided notebook, simulation/replay and motor-disabled sign checks.
 
-- [Course and qualified-runner interface](course_interface.md), with a disabled synthetic example.
-- [Day 2 sensor acquisition/replay contract](sensor_recording_contract.md), with a synthetic row-format example.
+- [Course files and flight commands](course_interface.md), with an example for checking file formats.
+- [Day 2 sensor recording and replay](sensor_recording_contract.md), with an example of the CSV layout.
 - [Sensor calibration](sensor_bias_calibration_exercise.md).
 - [Gate measurement with the supplied survey tool](hoop_survey_challenge.md).
 - [Trajectory construction and preview](trajectory_construction.md).

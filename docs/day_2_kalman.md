@@ -53,15 +53,19 @@ and dropouts. The resulting uncertainty gives us a basis for race-day choices.
 
 Controller gains and Q/R serve different purposes. The six-state filter takes
 world acceleration as its [process input](glossary.md#process-input-and-process-noise). Andreas's controllers operate at the
-velocity and tilt command layers. Closing the loop with the estimate needs an
-adapter and coupled simulation so that control actions change the motion.
+velocity and tilt command layers. Closing the loop with the estimate needs
+code connecting these command layers, and a simulation in which the controller's
+commands change the drone's motion.
 
 The core participant filter runs on the laptop. The race drone retains its
 separately configured onboard estimator and controller. The
 [Day 3 handover](day_3_race.md#how-day-2-feeds-into-the-race) explains how calibration
 and uncertainty studies inform race choices, and what a live-feedback extension
 would require. E2 includes sensor calibration and E6 uses live data during slow
-hand motion, with motors disabled. Both include analysis; neither requires flight.
+hand motion. E2's cfclient recording uses the manual `stabilizer.stop=1` steps;
+the live E6 helper engages and verifies the firmware stop automatically. Follow
+the [hand-held recording preparation](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording)
+and wait for verification before handling. Both include analysis; neither requires flight.
 The 14:25-15:00 block offers optional demonstrations or motor-free collection.
 
 ### Optional background
@@ -79,17 +83,23 @@ the scheduled experiments do not depend on reading them in full.
 
 ## Practical sessions
 
+Open the [Day 2 notebook](../code/day2/day2_kalman.ipynb) in the same Jupyter
+environment used on Day 1. Use it to compare filter assumptions, implement the
+outlier and stationary-update policies, and analyse recorded data. Its E1-E7
+sections correspond to the worksheet;
+the command-line examples below are alternatives for the same work.
+
 The [E1-E7 worksheet](kalman_filter_practical.md) suggests a route through the
 experiments; [shared conventions](practical_workflow.md) help comparisons. Before recording, agree channels,
 timestamps, frame/unit conversions and calibration/held-out data using the
-[recording contract](sensor_recording_contract.md). Day 1's state-estimate CSVs
+[recording guide](sensor_recording_contract.md). Day 1's state-estimate CSVs
 alone do not supply the sensor data needed by E2/E6.
 
 E3-E5 use a supplied experiment runner for matched scenarios, per-sensor
 diagnostics and saved plots/metrics. The hands-on work is choosing Q/R and
 implementing two short gate/stationarity decisions, then checking and explaining
-their effects. Building acquisition, plotting or ensemble infrastructure is
-unnecessary; larger seed studies and extra fault scenarios are extensions.
+their effects. The runner already records inputs, makes plots and repeats runs
+with different random seeds; larger studies and extra fault scenarios are extensions.
 
 | Exercise | Main task |
 | --- | --- |
@@ -101,7 +111,7 @@ unnecessary; larger seed studies and extra fault scenarios are extensions.
 | E6 | Compare two filters on one live stream without commanding motors; retain recording/replay as fallback. |
 | E7 | Use projected covariance to justify hoop-clearance and speed decisions. |
 
-Complete the [bounded E2 calibration check](sensor_bias_calibration_exercise.md#e2-core-45-minutes)
+Complete the [45-minute E2 calibration check](sensor_bias_calibration_exercise.md#e2-core-45-minutes)
 before tuning; the broader sensor studies are optional extensions. Powered flight
 also needs the team's hardware/preflight checks. Calibration addresses systematic offsets; noise covariance
 describes random variation. Onboard estimates combine filtered sensor information
@@ -115,7 +125,7 @@ cd code
 python -m day2.simulate
 python -m unittest kalman.test_filter
 cd ..
-jupyter lab code
+jupyter lab
 ```
 
 Docker is optional. Use supplied geometry for simulation; determining the actual

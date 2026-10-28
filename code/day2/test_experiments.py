@@ -17,11 +17,51 @@ from . import exercise_policies
 from .experiment_data import (GRAVITY, SCENARIOS, generate_data, sensor_available,
                               load_prepared_data, stationary_features, stationary_motion)
 from .experiments import (ExperimentCase, check_policies, lag_correlation, main,
-                          export_prepared, make_cases, run_experiment, summarize)
+                          export_prepared, make_cases, run_experiment, summarize,
+                          validate_position_dropout)
 from kalman.filter import FilterConfig, PositionVelocityKalmanFilter
 
 
 class ExperimentTests(unittest.TestCase):
+    def test_dropout_rejects_short_recording_and_missing_observation_phases(self):
+        case = ExperimentCase("dropout", FilterConfig(), "dropout", dropout_s=3)
+        short = replace(generate_data(0, "nominal", duration_s=5), has_truth=False)
+        with self.assertRaisesRegex(ValueError, "through 12 s"):
+            run_experiment(short, case)
+        for name in ("before", "during", "after"):
+            data = replace(generate_data(0, "nominal"), has_truth=False)
+            windows = {"before": data.time < 7,
+                       "during": (data.time >= 7) & (data.time <= 10),
+                       "after": (data.time > 10) & (data.time <= 12)}
+            data.measured_position[windows[name]] = np.nan
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, name):
+                validate_position_dropout(data, case)
+
+    def test_recorded_dropout_removes_updates_and_retains_recovery(self):
+        data = replace(generate_data(0, "nominal"), has_truth=False)
+        full = ExperimentCase("complete", FilterConfig(), "nominal")
+        gap = replace(full, name="gap", dropout_s=3)
+        original_positions = data.measured_position.copy()
+        complete = run_experiment(data, full)
+        interrupted = run_experiment(data, gap)
+        removed = [event for event in complete["events"] if 7 <= event["time_s"] <= 10]
+        self.assertGreater(len(removed), 0)
+        self.assertEqual(len(complete["events"]) - len(interrupted["events"]), len(removed))
+        self.assertTrue(any(10 < event["time_s"] <= 12 for event in interrupted["events"]))
+        np.testing.assert_array_equal(data.measured_position, original_positions)
+
+    def test_cli_rejects_ineffective_dropout_before_writing_results(self):
+        short = replace(generate_data(0, "nominal", duration_s=5), has_truth=False)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "comparison"
+            with patch("day2.experiments.load_prepared_data", return_value=short), \
+                 contextlib.redirect_stderr(io.StringIO()) as errors:
+                with self.assertRaises(SystemExit):
+                    main(["--study", "dropout", "--recording", "input.csv",
+                          "--metadata", "input.json", "--output", str(output)])
+            self.assertIn("loss and recovery", errors.getvalue())
+            self.assertFalse(output.exists())
+
     def test_repeatability_and_matched_sensor_noise(self):
         nominal = generate_data(7, "nominal")
         repeated = generate_data(7, "nominal")

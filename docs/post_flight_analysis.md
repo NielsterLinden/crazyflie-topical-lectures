@@ -1,6 +1,7 @@
 # Post-flight trajectory analysis
 
-After activating the native environment, run from the extracted package root:
+After activating the native environment, run from the project folder containing
+`code/`, `scripts/` and the requirements files:
 The following single-line command works in Bash and PowerShell.
 
 ```bash

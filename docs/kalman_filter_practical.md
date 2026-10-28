@@ -35,12 +35,28 @@ E1-E7 are the core; flight and stretch exercises are optional. Use the shared
 recording pack if acquisition takes too long. It identifies calibration
 conditions and held-out data; note what your team actually measured.
 Never reduce safety checks to recover time.
-Before E2 acquisition, agree the [sensor recording contract](sensor_recording_contract.md):
-channel availability, raw/derived provenance, timestamps, units, reference labels,
-and the instructor's calibration/held-out handoff. E6's minimum supported replay
+Before E2 recording, use the [sensor recording guide](sensor_recording_contract.md)
+to check available channels, existing onboard processing, timestamps, units and
+reference labels. Identify separate recordings for calibration and validation.
+E6's minimum supported replay
 and optional raw-flow/Lighthouse extensions are defined there too.
 
 ## Preparation
+
+The [Day 2 notebook](../code/day2/day2_kalman.ipynb) runs these experiments using
+the same filter and diagnostic routines as the command-line tools. Use either within
+the same time slots. Its optional motor-free capture cell runs the same live
+logger without a terminal, with a fixed duration and overall timeout. Follow the
+[hand-held recording preparation](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording):
+place the drone down, close other radio clients, select the assigned URI and
+opt into capture. The helper sets `stabilizer.stop=1`, verifies the lock and zero
+motor outputs, and prints **STOP VERIFIED** before hand motion may begin.
+Keep a checked recording or simulation available.
+In the notebook, implement the E4/E5 decisions in their
+cells and save the notebook; for CLI work, edit `exercise_policies.py` instead.
+The `--check-policies` commands test that module, not unsaved notebook functions.
+To use those CLI checks on a notebook decision, copy the function into the
+corresponding module function first.
 
 From the repository root, activate the native environment. Docker is optional.
 On macOS/Linux:
@@ -53,7 +69,9 @@ python -m day2.simulate
 ```
 
 On Windows, first use `.\.venv\Scripts\Activate.ps1`, then the same `cd` and
-Python commands. For notebooks, run `jupyter lab code` from the repository root.
+Python commands. For notebooks, run `jupyter lab` from the repository root and
+open `code/day2/day2_kalman.ipynb` in the file browser; this also exposes `docs/`
+for the worksheet and handling-guide links.
 
 The [glossary](glossary.md) defines the filter and uncertainty terms used below.
 The supplied filter implements prediction and updates. E3-E5 use
@@ -67,18 +85,18 @@ PowerShell. Use a new output directory for each run.
 
 Prefer your drone's data for E2 and E6. E3, E4's position gate and E5's position
 dropout can reuse a short motor-free capture through the same experiment runner.
-Within E3's existing first five minutes, close cfclient, keep motors disabled
-and propellers removed or securely restrained, and use the assigned exported
+Within E3's existing first five minutes, place the drone on a stable surface,
+close cfclient and other control scripts, keep clear of propellers, and use the assigned exported
 `CF_URI` (or add `--uri` with that URI):
 
 ```text
-python -m day2.live --output ../data/team-live --duration 30 --motors-disabled
+python -m day2.live --output ../data/team-live --duration 30 --prepare-for-handling
 ```
 
-Include a few seconds at rest, slow hand translation and rest again, with a clear
+Wait for **STOP VERIFIED**, then include a few seconds at rest, slow hand translation and rest again, with a clear
 Lighthouse view. Check the stationary world acceleration and position behaviour
-as described in [E6](#e6-compare-filters-on-live-drone-data). This capture sends no
-flight or parameter commands. Keep its raw data and metadata; no new converter
+as described in [E6](#e6-compare-filters-on-live-drone-data). Capture sets only
+`stabilizer.stop=1` and sends no flight commands. Keep its raw data and metadata; no new converter
 is needed. E2's cfclient raw-sensor calibration logs are separate from this
 prepared position/acceleration stream.
 
@@ -123,11 +141,11 @@ identify the dimensions of every matrix, and explain the outlier response.
 
 ## E2: calibrate before tuning
 
-**Task.** Follow the bounded [45-minute calibration exercise](sensor_bias_calibration_exercise.md#e2-core-45-minutes):
+**Task.** Follow the [45-minute calibration exercise](sensor_bias_calibration_exercise.md#e2-core-45-minutes):
 5 minutes for inventory, 10 for data, 15 for analysis, 10 for held-out validation
 and 5 for the E3 handover.
-Use motors disabled and propellers removed or a secure restraint that prevents
-propeller contact.
+For live handling, use the [firmware-stop preparation](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording)
+and keep clear of fitted propellers.
 
 1. Inventory every installed sensor: log variable, raw/derived status, units,
    frame, rate, existing onboard correction, and external reference.
@@ -245,7 +263,7 @@ using new output directories. That gives a known clean baseline and one isolated
 outlier. The supplied recording is the first fallback for acquisition problems.
 
 The policy check reports unfinished/incorrect decisions; it is expected to fail
-before the edit. The infrastructure tests include unchanged x/P after rejection.
+before the edit. The supplied tests check that rejection leaves the state and covariance unchanged.
 Both experiments compare ungated and participant-gated estimates on identical
 samples. In recorded-data mode the original is retained and the outlier is added
 only to an analysis copy, at the first position sample at/after 12 seconds.
@@ -257,7 +275,8 @@ predict its effect before rerunning.
 
 **Deliverable.** The short policy edit and check result, with links to the two
 comparisons and a sentence explaining the threshold choice and rejection pattern.
-The saved output includes a copy of the policy and its hash.
+CLI output includes a copy of the policy and its hash. With the notebook route,
+keep the edited notebook alongside the saved settings, diagnostics and CSVs.
 
 **Completion check.** Explain why large NIS can indicate a bad observation or a
 bad model. Compare clean rejection rates with alpha only where the model is
@@ -279,7 +298,12 @@ python -m day2.experiments --study dropout --recording ../data/team-live/prepare
 
 This removes position updates **only in replay**, comparing original sensing,
 3/6-second dropouts and propagation after the initial position. It never blocks
-the radio or changes onboard fusion. Use a recording of at least 15 seconds.
+the radio or changes onboard fusion. Use a recording of at least 15 seconds for
+the CLI's three- and six-second gaps. The notebook's three-second gap needs at
+least 12 seconds. Both routes check that position updates exist before, during
+and after the intended gap, including two seconds of recovery. An unsuitable
+recording is rejected; select a checked 30-second recording or explicitly use
+the synthetic fallback rather than treating an unchanged result as a dropout test.
 
 **Controlled fallback and full sensor study:**
 
@@ -334,14 +358,16 @@ fault combinations and custom scenarios can follow after the core.
 
 ## E6: compare filters on live drone data
 
-**Task.** Use the supplied `day2.live` helper while moving the drone
-slowly by hand, with motors disabled and propellers removed or an approved
-restraint. Both filters see the same live samples. No acquisition/conversion
+**Task.** Place the drone on a stable surface and run the supplied `day2.live`
+helper. Wait for **STOP VERIFIED** before moving it slowly by hand, keeping
+clear of fitted propellers. Both filters see the same live samples. No acquisition/conversion
 code is required from participants. The
 [recording guide](sensor_recording_contract.md#live-e6-session-and-replay-fallback)
-defines the saved input and fallback preparation. The helper sends no flight or
-parameter commands, checks motor outputs, and does not change the onboard estimator.
-The check is not a motor interlock: keep the physical propeller/restraint precautions.
+defines the saved input and fallback preparation. The helper sets only
+`stabilizer.stop=1`, verifies the locked state and zero motor outputs, and leaves
+the stop engaged afterwards. It does not change the onboard estimator or send
+flight commands. Place the drone down and power-cycle it before returning to
+normal preflight checks for flight.
 
 | Minutes | Activity |
 | --- | --- |
@@ -356,7 +382,7 @@ From the repository root, in Bash or PowerShell:
 
 ```text
 cd code
-python -m day2.live --output ../E6/live --duration 60 --motors-disabled
+python -m day2.live --output ../E6/live --duration 60 --prepare-for-handling
 cd ..
 ```
 
@@ -376,7 +402,8 @@ The metadata records channels, conversion, clocks, correction and input hashes;
 add the observed rest/motion intervals. Outputs are never overwritten. Failed
 captures retain partial raw/prepared data and status, with filter plots when at
 least two samples were processed. The helper needs `acc.x/y/z`,
-`stateEstimate.qx/qy/qz/qw`, `stateEstimate.x/y/z`, and `motor.m1/m2/m3/m4`.
+`stateEstimate.qx/qy/qz/qw`, `stateEstimate.x/y/z`, `supervisor.info`,
+`stabilizer.stop` and `motor.m1/m2/m3/m4`.
 Missing channels, stale data or excessive gaps stop capture rather than invent
 inputs; use the prepared recording instead of debugging through the slot.
 
@@ -461,7 +488,7 @@ The tiny `examples/replay.synthetic.csv` remains a format check only.
 own acquisition/replay after the core. Retain raw sensor and normalized event
 files, `recording.json`, conversion/calibration code and tests. Address ordering,
 late/duplicate/invalid observations, gaps and clock wrap as described in the
-recording contract. Justify any flow velocity/range-to-height conversion; omit
+recording format. Justify any flow velocity/range-to-height conversion; omit
 unsupported updates rather than inventing timing or fusing derived data twice.
 This is not part of the 30-minute core and remains motor-free.
 

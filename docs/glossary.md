@@ -15,6 +15,14 @@ A controller mechanism that limits or suspends integral accumulation when a
 command reaches its allowed range. It helps the controller recover when the
 requested motion becomes achievable again. See [saturation](#saturation).
 
+## Adapter and runner
+
+A runner is the program that carries out an experiment: it reads settings,
+processes data or sends commands, and saves results. An adapter is code that
+connects two interfaces, for example by converting sensor logs into the filter's
+input format or translating a controller's output into drone commands. A flight
+adapter must also handle units, coordinate frames, timing, limits and stopping.
+
 ## Attitude and bank
 
 Attitude is the drone's orientation relative to the world frame. Roll, pitch
@@ -312,6 +320,16 @@ is root mean square error (RMSE), in the same units as the error. State the
 components and time interval included; a vector-position RMSE combines axes,
 while a per-axis RMSE describes one component.
 
+## Run card and configuration freeze
+
+A run card is a short record of how a flight will be carried out: the exact
+command, code and settings, drone and course, operating limits, pilot and
+emergency-stop operator. A configuration freeze is the agreed time to stop
+changing the estimator or controller before racing. Save the chosen version
+and settings, then complete the remaining checks. Any later safety-related
+change needs the relevant checks repeated; a deadline never overrides a failed
+safety check. See the [race preparation steps](race_practical.md#freeze-points-and-fallback).
+
 ## Saturation
 
 A command reaching an allowed actuator or software limit. Once saturated, the
@@ -338,6 +356,15 @@ they evolve, using known inputs and process noise. A measurement model predicts
 the observations from that state. In the six-state exercise, position and
 velocity form the state, acceleration drives propagation, and position, flow
 velocity or height observations provide updates.
+
+## Sweep
+
+A parameter sweep repeats an experiment over a chosen range of parameter values
+to compare their effects. For example, a gain sweep varies the derivative gain
+\(K_d\) while keeping the other gains, reference motion and test conditions
+fixed, then compares overshoot and settling time. Use the same recorded data or
+simulation noise seed for matched comparisons. A frequency sweep instead varies
+the frequency of a test input to measure the system's response.
 
 ## System identification
 

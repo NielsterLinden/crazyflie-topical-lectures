@@ -1,21 +1,23 @@
-# Day 2: acquisition and replay contract
+# Day 2: recording sensor data and replaying it
 
 E2/E6 use sensor channels, reference conditions and timing metadata agreed before
 acquisition. These extend the Day 1 Pose/Power/Motors logs with the observations
 needed for calibration and inertial replay. We work through calibration together.
 E6 uses a supplied live helper, with prepared replay as fallback; developing
-another adapter is an optional extension with its own time allocation.
+another data converter is an optional extension needing extra time.
 Prefer live measurements and reuse each capture across comparisons. The prepared
 position/acceleration file also works directly with the
 [E3-E5 experiment runner](../code/day2/README.md#e3-e5-experiment-runner).
 Keep the checked recording pack available from the start; switch within five
 minutes if unexpected live-data issues block the planned study. Retain raw data
 and a short note for later diagnosis. Preparation checks channels, units, clocks
-and reference conditions while preserving the observations and their provenance.
-All acquisition is with motors disabled, using the worksheet's restraint/propeller
-policy. No flight command is needed for this contract.
+and reference conditions. Keep the original observations and record where they
+came from and any processing already applied.
+All hand-held acquisition uses the [firmware-stop preparation](#prepare-the-drone-for-hand-held-recording),
+including the worksheet's restraint/propeller
+precautions. These recording exercises send no flight commands.
 
-## Required handoff before acquisition
+## Before recording
 
 One shared recording pack supports the teams across the exercises. For the
 [E2 core](sensor_bias_calibration_exercise.md#e2-core-45-minutes), provide a
@@ -63,9 +65,10 @@ slower than the driver can skip increments; repeated snapshots are not new
 measurements. The interval between log packets is not necessarily the integration
 interval of that increment. The firmware's axis swap/sign convention and angular
 motion also matter. Unless the supplied dataset/adapter preserves true increment
-duration and provenance, use these logs for stationary offset/quality studies,
-not quantitative velocity fusion. Flow fusion in E6 is optional when that contract
-cannot be met; E5's simulated flow experiment remains available. See the
+duration and source-channel details, use these logs for stationary offset/quality
+studies, not quantitative velocity fusion. Flow fusion in E6 is optional when
+those timing and conversion requirements cannot be met; E5's simulated flow
+experiment remains available. See the
 [Flow measurement model](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/functional-areas/sensor-to-control/state_estimators/#measurement-models).
 
 **Lighthouse caveat:** `stateEstimate.*` is not a raw sweep-angle record. Raw
@@ -123,15 +126,66 @@ Do not assert exact acquisition-time or delay compensation from these CSVs alone
 
 ## Live E6 session and replay fallback
 
-### Live capture using the supplied adapter
+### Live capture using the supplied helper
+
+#### Prepare the drone for hand-held recording
+
+For the Day 2 notebook, `day2.live` or `scripts/measure_hoop.py`:
+
+1. Put the drone on a stable surface, with hands and loose objects clear of its
+   propellers. Close cfclient and any other drone-control scripts. Leave the
+   drone on the surface until verification completes.
+2. Select your team's assigned URI. In the notebook set
+   `ready_for_motor_stop = True` after step 1, then opt into live capture.
+   With `day2.live`, use `--prepare-for-handling`. The survey script asks you
+   to type `STOP AND SURVEY` before connecting.
+3. The tool sets `stabilizer.stop=1`, then requires a parameter readback of `1`,
+   a fresh supervisor status showing locked and neither armed nor able to fly,
+   and four zero motor outputs. Verification has a five-second timeout after
+   connection/parameter loading. If it fails or channels are missing, leave the
+   drone down and use a checked recording or simulation.
+4. Wait for **STOP VERIFIED** in the notebook/terminal output before picking
+   up the drone. Use secure handling that prevents contact with propellers.
+   Keep the same powered session throughout capture. The Day 2 helper
+   also checks zero motor outputs continuously during acquisition.
+
+`stabilizer.stop=1` requests the firmware's emergency stop. On the lecture
+firmware this latches the supervisor's locked state until reboot; setting the
+parameter back to `0` is not the recovery procedure. After finishing the
+motor-free work, place the drone down and power-cycle it before returning to
+the normal preflight checks for flight. Repeat preparation if you restart it
+before another recording. There is no need to save this parameter persistently.
+See Bitcraze's [stop parameter implementation](https://github.com/bitcraze/crazyflie-firmware/blob/master/src/modules/src/supervisor.c)
+and [emergency-stop behaviour](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/functional-areas/supervisor/#emergency-stops).
+
+**When logging directly in cfclient, or using the Day 1 handcheck:** on the
+surface, connect cfclient to the assigned URI. Open **Parameters**, expand
+**stabilizer**, edit **stop** to `1`, press Enter, check the displayed value is
+`1`, and visually check stationary propellers. If the value cannot be set, use
+supplied data. For cfclient recordings, stay connected and leave that setting
+engaged. For Day 1's separate script, disconnect and close cfclient without
+rebooting, then run the documented handcheck. The Day 1 script monitors motor
+outputs but does not itself engage or verify the firmware lock. Power-cycle on
+the surface and repeat preflight checks before returning to flight in either case.
 
 The [E6 instructions](kalman_filter_practical.md#e6-compare-filters-on-live-drone-data)
-use `python -m day2.live` with the assigned URI and motors disabled.
+use `python -m day2.live` with the assigned URI and `--prepare-for-handling`.
 The helper reads three separate 50 ms log blocks: acceleration plus onboard
 position (six floats, 24 bytes), [quaternion](glossary.md#quaternion-and-so3)
 (16 bytes), and motor outputs
 (16 bytes). No gyro, range, flow or raw Lighthouse-angle fusion is claimed.
 Close cfclient; only one client should use the radio connection.
+
+The [Day 2 notebook](../code/day2/day2_kalman.ipynb) offers the same capture
+without a terminal. Its opt-in cell records completion of the steps above and
+uses the team's assigned URI. The default recording lasts
+60 seconds after usable telemetry starts; an overall 90-second timeout also
+covers connection and saving. Notebook durations are limited to 1-120 seconds,
+with 30 seconds added for connection/saving. The cell displays the saved plot
+and selects only a completed recording. Interrupting the kernel stops the logger;
+partial files remain for inspection. Choose a fresh capture name on a retry.
+Failed captures require an explicit choice of a checked recording or simulation;
+they do not silently change the experiment's input.
 
 `raw.csv` preserves received values, original firmware timestamps and host receive
 times. The helper unwraps 24-bit firmware log milliseconds and buffers arrivals
@@ -148,7 +202,7 @@ checked and normalized. Current acceleration is a held-input approximation for
 the preceding interval; packet timestamps are logging-time proxies, not exact
 independent sensor times. No hidden interpolation or sensor-delay compensation
 is performed. Verify stationary acceleration at level and tilt before accepting
-data. Saved `prepared.csv` and `recording.json` use the replay contract below;
+data. Saved `prepared.csv` and `recording.json` use the replay format below;
 both configurations therefore reproduce the live numerical results offline.
 Metadata includes input hashes, channels, conversion/correction, skipped-event
 count and completion/failure status. Partial data survive ordinary errors or
@@ -156,10 +210,10 @@ Ctrl+C; an abrupt process/power loss may leave incomplete metadata.
 
 The default extra accelerometer correction is zero. E2 values are not silently
 loaded; `--acc-bias-g` requires a separately justified correction in g. Do not
-subtract existing onboard compensation twice. Neither mode writes parameters,
-selects an estimator/controller, arms or commands motors. Motor-output monitoring
-does not replace disabled motors and removed propellers or a secure restraint
-preventing propeller contact.
+subtract existing onboard compensation twice. The only parameter written by
+capture is `stabilizer.stop=1`, which remains engaged on success, error or
+interruption. Capture never selects an estimator/controller, arms or sends
+flight setpoints. Keep clear of propellers even after lock verification.
 
 ### Prepared-data fallback
 

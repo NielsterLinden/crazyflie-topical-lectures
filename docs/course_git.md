@@ -1,9 +1,11 @@
 # Get updates and share your work
 
-The public [course repository](https://gitlab.com/topical2/crazyflie-lectures/-/tree/course)
-contains the exercises, notes and code on its `course` branch. You can clone and
-fetch it without an account. GitLab accounts are needed to host a fork or open
-merge requests. The private teaching repository is separate.
+The [course project](https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures/)
+contains the exercises, notes and code on its `course` branch. When the project
+is public, you can clone and fetch it without an account. While it is private,
+you need a Nikhef GitLab account with repository access. An account is also
+needed to host a fork or open merge requests. The private teaching repository
+is separate.
 
 ## Clone the course
 
@@ -28,23 +30,25 @@ Choose where to keep the project. The commands below use your home folder
 
 ```text
 cd "$HOME"
-git clone --branch course --single-branch https://gitlab.com/topical2/crazyflie-lectures.git
-cd crazyflie-lectures
+git clone --branch course --single-branch https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures.git
+cd crazyflie-topical-lectures
 git branch --show-current
 ```
 
-The last command should print `course`. This selects the exercises and source
-code; the repository's `main` branch hosts the website. The HTTPS clone command
-above works without a GitLab login, access token or SSH key.
+The last command should print `course`. Its README links the installation guide,
+daily programmes, exercises and supporting material. If Git asks for credentials,
+the project still requires authenticated access. With an SSH key registered in
+your Nikhef GitLab account, copy **Clone with SSH** from the course project's
+**Code** menu and use that URL in place of the HTTPS URL in the clone command.
 
 Check the downloaded files with `ls` on macOS/Linux or `Get-ChildItem` in
 PowerShell. You should see `README.md`, `code/`, `scripts/`,
 `requirements-hardware.txt` and `requirements-simulation.txt`.
-This `crazyflie-lectures` folder is the **project root** used by the installation
+This `crazyflie-topical-lectures` folder is the **project root** used by the installation
 and exercise commands. Continue with the operating-system instructions in the
 [installation guide](software_setup.md#native-setup), from this folder.
 
-If cloning reports that `crazyflie-lectures` already exists and is not empty,
+If cloning reports that `crazyflie-topical-lectures` already exists and is not empty,
 keep that folder intact. If it is your existing course clone, open it and use
 the [update instructions](#bring-course-updates-into-your-work) below. Otherwise,
 choose a different parent folder and repeat the clone there. If cloning fails,
@@ -108,15 +112,14 @@ commit alongside the release when comparing runs.
 
 ## Share improvements
 
-On GitLab.com, open the course project and choose **Fork** to create a copy in
-your account or team namespace. Include **all branches** so the fork includes
-`course`; `main` hosts the website. GitLab's
-[fork instructions](https://docs.gitlab.com/user/project/repository/forking_workflow/)
+On Nikhef GitLab, open the course project and choose **Fork** to create a copy in
+your account or team namespace. Include the `course` branch. GitLab's
+[fork instructions](https://gitlab.nikhef.nl/help/user/project/repository/forking_workflow.md)
 describe the account and visibility options. Keep the initial clone as the update source:
 
 ```text
 git remote rename origin upstream
-git remote add origin https://gitlab.com/YOUR-NAMESPACE/crazyflie-lectures.git
+git remote add origin https://gitlab.nikhef.nl/YOUR-NAMESPACE/crazyflie-topical-lectures.git
 git push -u origin team-work
 ```
 
