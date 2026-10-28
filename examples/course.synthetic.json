@@ -1,0 +1,27 @@
+{
+  "course_name": "synthetic-format-example-not-for-flight",
+  "enabled_for_flight": false,
+  "uri_environment_variable": "CF_URI",
+  "yaw_deg": 0.0,
+  "start": [0.0, 0.0, 0.7],
+  "finish": [2.0, 0.0, 0.7],
+  "hoops": [
+    {"name": "example-forward", "centre": [1.0, 0.0, 0.7], "normal": [1.0, 0.0, 0.0], "radius_m": 0.5}
+  ],
+  "limits": {
+    "setpoint_rate_hz": 50.0,
+    "target_speed_m_s": 0.3,
+    "maximum_speed_m_s": 0.5,
+    "maximum_acceleration_m_s2": 1.0,
+    "maximum_tilt_deg": 20.0,
+    "maximum_tracking_error_m": 0.3,
+    "telemetry_timeout_s": 0.25,
+    "drone_radius_m": 0.12,
+    "clearance_margin_m": 0.08,
+    "pre_post_distance_m": 0.4,
+    "takeoff_duration_s": 3.0,
+    "landing_duration_s": 3.0,
+    "bounds_min": [-0.5, -1.0, -0.2],
+    "bounds_max": [2.5, 1.0, 1.5]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "dataset_id": "synthetic-format-only-not-a-real-recording",
+  "provenance": "Artificial stationary values for checking the replay command, not calibration or validation evidence.",
+  "prepared_replay": {
+    "acceleration_frame": "world",
+    "gravity_removed": true,
+    "acceleration_interval": "preceding",
+    "position_source": "onboard"
+  },
+  "timestamp_kind": "synthetic seconds, common origin",
+  "calibration": "not applicable; artificial values",
+  "preparation": "No resampling or physical sensor conversion; data are synthetic."
+}

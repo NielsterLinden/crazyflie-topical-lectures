@@ -1,0 +1,8 @@
+time_s,sensor,x,y,z,w,flow_dt_s,valid
+0.000,specific_force_body,0,0,9.80665,,,1
+0.000,angular_rate_body,0,0,0,,,1
+0.000,attitude_quat_onboard,0,0,0,1,,1
+0.000,position_onboard,0,0,0.2,,,1
+0.020,specific_force_body,0,0,9.80665,,,1
+0.020,attitude_quat_onboard,0,0,0,1,,1
+0.050,range,0.2,,,,,1

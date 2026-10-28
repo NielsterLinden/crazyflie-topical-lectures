@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+tl-config.env
+/data/
+/day1/
+/E[0-9]*/
+/plans/
+/survey/
+/public/
