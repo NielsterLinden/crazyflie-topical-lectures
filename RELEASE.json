@@ -3,7 +3,7 @@
     ".gitignore": "9cab7c3cd451432b85082614fb21f425d6d2dcdb2100203787792b7cd1c809e4",
     ".python-version": "7b55f8e67b5623c4bef3fa691288da9437d79d3aba156de48d481db32ac7d16d",
     "Dockerfile": "e883a1e39b9dbad7a4cb23121b01cb5a819ea98e969a31aff4375c85f79acb91",
-    "README.md": "6a6ccbbd91d8ccc7a2cc1fcd3133b592795b9cd58c0d5107c7b9af4d1d899032",
+    "README.md": "9dfe9648e420e56c2bee4c3be8f59090aff253b02d43b0c939fee9032087009f",
     "code/README.md": "470c6cbf8abd6063016b46024b4d4286a60b0edd98efb4af507f4b0ac531ce9c",
     "code/andreas/README.md": "26746dafd4b82c3c77037c984bb7715d3783fd90a433e7efe717c178586c28e3",
     "code/andreas/__init__.py": "8b664311d1e4e013419db710e32ca35dc77e2240679ef72fc1c35cd21878ad8e",
@@ -92,7 +92,7 @@
     "docs/rotations_and_quaternions.md": "e6e4253aa1ee52eadf6328d2a6ec2db4abaf6705aebc5f4742d764d963ae5c39",
     "docs/sensor_bias_calibration_exercise.md": "5ac755e760ff250618719855d2601cf361f61adde0fba3719b6594941c3c73b3",
     "docs/sensor_recording_contract.md": "f105c070abd4187a5f10f088e75f2e78d17a941e4bdfdc7f5e0c8d09f9df1d65",
-    "docs/software_setup.md": "892c909d9c3b43ba51a969667b3e5c63cb70c67f966191455414b28083f85e32",
+    "docs/software_setup.md": "2e3174e9a3acc5750a4d88a440e59618d3c08f6c05ba851edd46c6841f0cc9dd",
     "docs/templates/controller_report.md": "35de210dcf5e5d1c74fad0e7df5458f75801d4003af1a408045cc3d84e4aaa00",
     "docs/templates/kalman_filter_report.md": "d14c6f4011079f3cbdddda47cc912a3533a74b4a31136bcc393569931d76aa44",
     "docs/templates/race_report.md": "804b2d04262c529c3d75a3cb701f2781a6ecca5fd41ef64dc27df52ee48ec91a",
@@ -118,6 +118,6 @@
     "scripts/validate_environment.py": "8116d22f2a02a629832c4dd80b49c33a1393f2744139b8365c652c9be7d68e07",
     "tl-config.env.example": "bde85e741ab885de53c3e7480a333160a2024deb75169b9bff9724bdde760bfe"
   },
-  "source_revision": "cc78fb9e7a80ca2e9c1171e54dfc2af27d904410",
-  "version": "0.0.12"
+  "source_revision": "cc94ddf8fe953524a0a59bdf755f02b42754c9ee",
+  "version": "0.0.13"
 }

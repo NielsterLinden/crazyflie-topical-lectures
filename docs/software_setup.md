@@ -7,8 +7,7 @@ containing `README.md`, `scripts/`, `code/`, `requirements-hardware.txt` and
 `requirements-simulation.txt`.
 
 Before the lectures, install the native environment and complete the
-[software-only checks](#native-simulations-and-notebooks). You can do this
-without a drone or Crazyradio. The [USB](#usb-setup) and
+[software-only checks](#native-simulations-and-notebooks). The [USB](#usb-setup) and
 [radio checks](#team-radio-configuration) follow when your group has its hardware.
 
 Use the native Python environment for cfclient and Crazyradio access.
@@ -19,6 +18,31 @@ Use the native Python environment for cfclient and Crazyradio access.
 | cfclient, Crazyradio, flight scripts, Matplotlib plots | No |
 | Simulations and Jupyter notebooks in the native Python environment | No |
 | Optional simulation/notebook container | Yes |
+
+## Access Nikhef GitLab
+
+Open the [course project](https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures/).
+If you reach the sign-in page:
+
+1. Choose **Federated login**.
+2. Select your home institution. Nikhef users select **Nikhef SSO**; external
+   participants select their own institution and use its usual login details.
+3. Complete any consent or account-creation prompts, then reopen the course link.
+
+If your institution is missing, federated login fails, or the project remains
+inaccessible after login, contact
+[Nikhef Helpdesk](mailto:helpdesk@nikhef.nl) directly.
+Follow [Nikhef's GitLab access instructions](https://kb.nikhef.nl/ct/Gitlab.html).
+
+For installation questions and finding teammates, log in to
+[Nikhef Mattermost](https://mattermost.nikhef.nl) via **GitLab**, then
+**Federated login** if prompted. Click your profile picture (or initials), choose
+**Profile**, and copy the value in the **Username** field. This is your unique
+Mattermost account identifier. Add an `@` prefix to form your `@username`: for example,
+`a.smith` becomes `@a.smith`. Submit it through the
+[Indico form](https://indico.nikhef.nl/event/8196/surveys/13) so the organizers can
+add you to the lecture channel. Please use the form for channel requests.
+For Mattermost login problems, contact Helpdesk as above.
 
 ## Native setup
 
@@ -93,7 +117,7 @@ xcode-select --install
 ```
 
 Choose either [Homebrew](https://brew.sh/) or
-[MacPorts](https://www.macports.org/install.php); you do not need both.
+[MacPorts](https://www.macports.org/install.php).
 Install the package manager first and follow its instructions to add it to
 `PATH`. Both routes below include `libusb` for Crazyradio access.
 
@@ -258,8 +282,7 @@ arrange a permitted installation before arrival or share a working group laptop.
 ## Native simulations and notebooks
 
 The native setup scripts install **the core simulation and notebook dependencies**
-alongside cfclient. Neither Docker nor Colima nor a connected drone is needed
-for these offline exercises.
+alongside cfclient.
 
 From the project root, with `.venv` active, run:
 
@@ -455,10 +478,8 @@ the unresolved check for later investigation.
 
 ## Optional containers
 
-Skip this section for cfclient, flight scripts, and native simulations or
-notebooks. The containerized services need a running Docker engine, not just
-the Docker command-line client. On macOS, choose **Docker Desktop or Colima**,
-not both. Colima runs a Linux VM for Docker; it is not needed on Linux or Windows.
+For containerized services, start a Docker engine. On macOS, choose either
+**Docker Desktop or Colima**. Colima provides a Linux VM for Docker on macOS.
 
 The setup scripts can also install container tools. Choose one option:
 
