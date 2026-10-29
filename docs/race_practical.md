@@ -208,7 +208,7 @@ claim faster laps unless the speed policy actually changes the simulated motion.
 
 **Task.** Check the exact system that will fly, record the result and make the
 team's go/no-go decision. The pilot and a second team member cross-check the
-flight-critical items before starting; all four participants agree before each
+flight-critical items before starting; all group members agree before each
 stage transition.
 
 1. For hand-held measurements, use the [firmware-stop preparation](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording).

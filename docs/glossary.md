@@ -269,7 +269,7 @@ trials. Both require a specified reference and covariance definition.
 
 Qualification is the team's documented check that a specific hardware, software
 and course configuration meets the agreed flight requirements, including a
-different member's cross-check and a low-speed test. All four participants agree
+different member's cross-check and a low-speed test. All group members agree
 before moving to the next stage. A fallback is an already
 checked configuration available when a candidate is unfinished or fails a check.
 See the [team flight checks](race_practical.md#r5-qualify-and-freeze-the-race-configuration).

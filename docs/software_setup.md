@@ -6,21 +6,13 @@ Start with [GitLab access](#access-nikhef-gitlab), then follow
 [Native setup](#native-setup) to install the tools, download the course and
 create its Python environment.
 
-The native setup runs Python directly on your laptop. Its setup script creates
-a project-specific `.venv` folder containing the Python environment and lecture packages.
+The native setup runs Python directly on your laptop and installs the lecture packages.
 
 Before the lectures, complete this setup and the
 [software-only checks](#native-simulations-and-notebooks). The [USB](#usb-setup) and
 [radio checks](#team-radio-configuration) follow when your group has its hardware.
 
-Use this Python environment for cfclient and Crazyradio access.
 **Neither Docker nor Colima is needed to connect to or fly a drone.**
-
-| Activity | Docker needed? |
-| --- | --- |
-| cfclient, Crazyradio, flight scripts, Matplotlib plots | No |
-| Simulations and Jupyter notebooks in the native Python environment | No |
-| Optional simulation/notebook container | Yes |
 
 ## Access Nikhef GitLab
 
@@ -40,11 +32,10 @@ Follow [Nikhef's GitLab access instructions](https://kb.nikhef.nl/ct/Gitlab.html
 For installation questions and finding teammates, log in to
 [Nikhef Mattermost](https://mattermost.nikhef.nl) via **GitLab**, then
 **Federated login** if prompted. Click your profile picture (or initials), choose
-**Profile**, and copy the value in the **Username** field. This is your unique
-Mattermost account identifier. Add an `@` prefix to form your `@username`: for example,
+**Profile**, and copy the value in the **Username** field. Add an `@` prefix to form your `@username`: for example,
 `a.smith` becomes `@a.smith`. Submit it through the
 [Indico form](https://indico.nikhef.nl/event/8196/surveys/13) so the organizers can
-add you to the lecture channel. Please use the form for channel requests.
+add you to the lecture channel.
 For Mattermost login problems, contact Helpdesk as above.
 
 ## Native setup
@@ -53,65 +44,18 @@ Follow these steps:
 
 1. Install any missing prerequisite tools for [macOS](#macos), [Linux](#linux)
    or [Windows](#windows). If they are already installed, skip their installation.
-2. Clone the course using the commands below to download its files to your laptop.
+2. [Download the course](#download-the-course) to your laptop.
 3. [Set up this project](#create-the-project-environment) in the cloned folder.
    This step is still needed when Git, Python and the other tools are installed.
 
-If you already cloned the course, open a terminal in that project folder.
-You only need to clone once. Neither `git clone` nor `git pull` creates `.venv`;
-the project setup script creates it locally and installs the lecture packages.
-
-Install Git before cloning: use `xcode-select --install` on macOS, your
-distribution package manager on Linux, or [Git for Windows](https://git-scm.com/downloads/win).
-Open a new Terminal or PowerShell window after installation, then run:
-
-```text
-git --version
-git clone --branch course --single-branch https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures.git
-cd crazyflie-topical-lectures
-```
-
-The `course` branch contains the notes, exercises and code. While the project
-is private, you need a Nikhef GitLab account with repository access. Once public,
-it can be cloned without logging in. The [cloning guide](course_git.md#clone-the-course)
-also explains SSH access. Keep this terminal in the cloned
-`crazyflie-topical-lectures` folder for the commands below. To check your location, use
-`pwd` and `ls` on macOS/Linux, or `Get-Location` and `Get-ChildItem` in PowerShell.
-You should see `README.md`, `scripts/`, `code/` and the two requirements files.
-If you open a new terminal, use `cd` with the path where you cloned the project;
-for example `cd "$HOME/Downloads/crazyflie-topical-lectures"` on macOS/Linux or
-`cd "$HOME\Downloads\crazyflie-topical-lectures"` in PowerShell if it is inside Downloads.
-
-The [Git workflow](course_git.md) explains team branches, merging course updates
-and sharing improvements. If you have an offline ZIP snapshot, extract it into
-a writable folder and use the folder containing those same files for setup.
-
-
-After cloning, run commands from the project folder unless shown otherwise.
-This folder contains `README.md`, `scripts/`, `code/`, `requirements-hardware.txt`
-and `requirements-simulation.txt`. It is the **project root**.
-Commands such as `bash scripts/setup-unix.sh` look for
-files relative to the terminal's current folder.
-
-Check your location with `pwd` and list files with `ls` on macOS/Linux, or use
-`Get-Location` and `Get-ChildItem` in PowerShell. You should see the files and
-folders listed above. Commands that need a different folder explicitly include
-a step such as `cd code`.
-
 **Python 3.12.x is the tested default.** Newer versions are allowed with a
 warning but have not been validated with the pinned packages, Qt GUI, and USB
-access; older versions are rejected. The setup scripts create or reuse `.venv`,
-install both `requirements-hardware.txt` and `requirements-simulation.txt`, and
-run the environment validator. They do not install Git, Python, native GUI/USB
-libraries, USB permissions/drivers, or team radio settings. Docker installation
-is optional and requires an explicit flag.
+access; older versions are rejected.
 
 Initial installation needs internet access and space for the Python environment
 and downloaded packages. Installing a package manager, Linux libraries or Windows
 USB drivers may require administrator access; arrange that in advance on managed
 laptops. The installed simulations and supplied notebook then work offline.
-Keep the extracted project in a writable folder and open a terminal in that
-folder, rather than running files from inside the ZIP viewer.
 
 ### macOS
 
@@ -142,6 +86,8 @@ sudo port install python312 libusb
 
 See also the [Python macOS guide](https://docs.python.org/3.12/using/mac.html).
 
+Next, [download the course](#download-the-course).
+
 ### Linux
 
 Install Python 3.12 and its `venv` support using your distribution's packages;
@@ -160,7 +106,7 @@ If your distribution supplies a newer Python, use the explicit `PYTHON`
 override below rather than replacing the system Python. The default command
 looks specifically for `python3.12`, not `python3`.
 
-Once these prerequisites are available, continue with project setup below.
+Next, [download the course](#download-the-course).
 
 ### Windows
 
@@ -178,13 +124,39 @@ Crazyradio driver. Complete the Windows USB steps below separately.
 launcher is also installed. Open a new PowerShell window if the command is not
 found immediately after installing the manager.
 
+Next, [download the course](#download-the-course).
+
+### Download the course
+
+[Clone the course](course_git.md#clone-the-course) into a writable folder.
+If you already cloned it, open a terminal in that project
+folder instead.
+
+
+
+Run the following commands from the project root. Commands that need another
+folder explicitly include a step such as `cd code`.
+
 ### Create the project environment
 
 Run this step from the project root even if all prerequisite tools were already
-installed. Select the command for your platform; it creates or reuses `.venv`,
-installs the hardware and simulation requirements, and runs the validator.
+installed. The setup script creates a project-specific `.venv` folder containing
+the Python environment and lecture packages, or updates it if it already exists.
+It installs `requirements-hardware.txt` and `requirements-simulation.txt`, and
+runs the environment validator.
 An existing Conda environment, such as `(base)`, is separate from this project's
 `.venv` and does not replace this step.
+
+Choose one setup command below. The platform commands use Python 3.12. If you
+are using a newer Python, use the alternative command instead:
+
+- macOS/Linux: `PYTHON=/path/to/python3.14 bash scripts/setup-unix.sh`
+- Windows PowerShell: set `$env:PYTHON = 'C:\path\to\python.exe'`, then run
+  `.\scripts\setup-windows.ps1`. If script execution is blocked, first run
+  `Set-ExecutionPolicy -Scope Process Bypass`.
+
+Use a fresh course clone when changing interpreter versions
+so an existing `.venv` is not reused with another Python.
 
 **macOS with Homebrew:**
 
@@ -215,25 +187,6 @@ Set-ExecutionPolicy -Scope Process Bypass
 Wait for setup to finish successfully before activation. If it fails, keep the
 error output and resolve that error first. Updating the checkout with `git pull`
 preserves an existing environment; rerun setup if the requirements change.
-
-### Select another Python
-
-Leave `PYTHON` unset for the default. To select another executable on macOS/Linux:
-
-```bash
-PYTHON=/path/to/python3.14 bash scripts/setup-unix.sh
-```
-
-On Windows, set `$env:PYTHON` to the full path of the desired `python.exe`
-before running setup; this variable accepts an executable path:
-
-```powershell
-$env:PYTHON = 'C:\path\to\python.exe'
-.\scripts\setup-windows.ps1
-```
-
-Use a fresh course clone or extracted snapshot when changing interpreter versions
-so an existing `.venv` is not reused with another Python.
 
 ### Activate and check
 
@@ -276,8 +229,7 @@ These commands check three different things:
    below under [Team radio configuration](#team-radio-configuration).
 3. Running `cfclient` opens its window and checks that the graphical interface
    starts correctly. Leave it disconnected from the drone, then close the window
-   before continuing. This step checks GUI startup separately from the package
-   imports checked by the validator.
+   before continuing.
 
 If local policy prevents PowerShell activation, the environment's executables
 can be run directly: `.\.venv\Scripts\python.exe` and
@@ -285,9 +237,6 @@ can be run directly: `.\.venv\Scripts\python.exe` and
 arrange a permitted installation before arrival or share a working group laptop.
 
 ## Native simulations and notebooks
-
-The native setup scripts install **the core simulation and notebook dependencies**
-alongside cfclient.
 
 From the project root, with `.venv` active, run:
 
@@ -333,25 +282,12 @@ practicals. There is no extra software installation or pre-lecture assignment.
 **Pre-lecture setup is complete** when the validator passes, cfclient opens,
 the simulation/test checks pass and the notebook produces its plots using the
 intended interpreter. Keep any error output if a check fails and compare it
-within your group. Hardware checks can wait until your drone and radio are available.
-
-These commands work in Bash and PowerShell after activation. See the
-[Day 1 software guide](day_1_software.md) for the experiments. The additional
-Kalman simulations can be checked from `code/` when useful:
-
-```bash
-python -m day2.simulate
-python -m day1.feedforward
-python -m unittest kalman.test_filter
-```
-
-Docker remains an [optional simulation alternative](#simulations-and-notebooks).
+within your group.
 
 ## USB setup
 
-These steps are for the Crazyradio once hardware is available. Keep the drone's
-motors stopped during connection checks. Each group needs one radio and its
-assigned drone; software-only pre-lecture checks use neither.
+Each group needs one radio and its assigned drone. Keep the drone's motors
+stopped during connection checks.
 
 ### Windows
 
@@ -483,62 +419,5 @@ the unresolved check for later investigation.
 
 ## Optional containers
 
-For containerized services, start a Docker engine. On macOS, choose either
-**Docker Desktop or Colima**. Colima provides a Linux VM for Docker on macOS.
-
-The setup scripts can also install container tools. Choose one option:
-
-| Platform | Setup command | Runtime |
-| --- | --- | --- |
-| macOS with Homebrew | `bash scripts/setup-unix.sh --with-docker-desktop` | Docker Desktop |
-| macOS with MacPorts | `bash scripts/setup-unix.sh --with-colima` | Colima |
-| Ubuntu, Debian, Fedora | `bash scripts/setup-unix.sh --with-docker` | Docker Engine |
-| Windows PowerShell | `.\scripts\setup-windows.ps1 -WithDocker` | Docker Desktop |
-
-These options also prepare the native Python environment. If you selected a
-custom `PYTHON` above, use the same setting here. For other Linux distributions,
-follow [Docker's installation guide](https://docs.docker.com/engine/install/).
-
-Automatic installation uses `brew` on the Homebrew route, `port` plus `sudo`
-on the MacPorts route, `sudo` plus `apt-get`/`dnf` on Linux, and `winget` on
-Windows. Install the relevant package manager first. Linux automation supports
-Debian, Ubuntu, and Fedora (`dnf config-manager addrepo` syntax); check
-[Docker's supported releases](https://docs.docker.com/engine/install/) and
-resolve conflicting older packages before running it. Windows Docker Desktop
-also needs its [Windows/WSL 2 prerequisites](https://docs.docker.com/desktop/setup/install/windows-install/),
-and installation may require administrator approval or a restart.
-
-If Docker is already installed but stopped, start its existing runtime first
-and use native-only setup; the scripts do not repair partial Docker setups.
-The Unix installer skips container installation only if the CLI, Compose, and
-daemon are already usable. The Windows installer checks only the CLI and
-Compose before skipping installation; start the daemon separately.
-
-Launch Docker Desktop and complete its first-run setup, or start Colima with
-`colima start` (the installer starts it initially; `colima stop` stops it).
-On Linux, log out and back in after installation so membership of the
-`docker` group takes effect. Membership grants root-equivalent access to the
-Docker daemon. Verify the installation with:
-
-```bash
-python scripts/validate_environment.py --docker
-```
-
-### Simulations and notebooks
-
-The optional simulation container uses Python 3.12 and does not provide cfclient
-or direct Crazyradio access:
-
-```bash
-docker compose build
-docker compose up
-```
-
-Open `http://127.0.0.1:8888`. The host `code/` directory remains editable and is
-part of the project folder mounted into the container, alongside `examples/`,
-`docs/` and generated outputs. Open `code/andreas/day1_control.ipynb` for Day 1.
-Results written under `day1/`, `E6/` or `plans/` stay in the host project folder
-after the container is stopped or recreated. Select the container's **Python 3
-(ipykernel)** kernel; here `sys.executable` identifies the container's Python
-rather than the native `.venv`.
-
+For the alternative Docker-based simulation and notebook environment, follow
+the [container setup guide](container_setup.md).

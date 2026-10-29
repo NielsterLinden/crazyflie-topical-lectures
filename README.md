@@ -9,7 +9,7 @@ Kalman filtering. Along the way, we connect these ideas to particle-physics
 tracking and gravitational-wave instrumentation.
 
 The exercises are starting points for investigating models and comparing ideas.
-We work in groups of four per drone, sharing measurements, cross-checks,
+We work in groups of four or five per drone, sharing measurements, cross-checks,
 piloting and recording. Before each experimental stage, the group cross-checks
 the configuration and results so far, agrees on the next experiment and confirms
 that its checks and operating limits are understood. Before flight, the group
@@ -20,33 +20,14 @@ drone and flight area are ready.
 describes the drone, its sensors, and the Lighthouse and Flow decks.
 The [practical glossary](docs/glossary.md) explains terminology used in the guides.
 
-## Clone course
-
-Open **Terminal** on macOS/Linux or **PowerShell** on Windows. With Git installed,
-run each line below separately. This downloads the course into a new
-`crazyflie-topical-lectures` folder inside your home folder:
-
-```text
-git --version
-cd "$HOME"
-git clone --branch course --single-branch https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures.git
-cd crazyflie-topical-lectures
-```
-
-The `course` branch contains the notes and exercise code. While the repository
-is private, you need a Nikhef GitLab account with access; a public repository
-can be cloned without logging in. Continue with the [installation guide](docs/software_setup.md)
-from this folder to install Python and the libraries.
-The [step-by-step cloning guide](docs/course_git.md#clone-the-course) covers installing
-Git, checking the download and using an existing clone.
-
 ## Prerequisites
 
 No prior drone experience is assumed. Bring a laptop and follow the
-[installation guide](docs/software_setup.md) before the lectures: clone the
-repository, install the Python environment, and run the software-only
-checks. You can do these checks without a drone or radio. We check the hardware
-connections together during Day 1.
+[installation guide](docs/software_setup.md) before the lectures. It covers
+GitLab access, installing Git and Python, downloading the course, creating the
+Python environment and checking the software. Start there even if you have
+not installed Git or downloaded the files yet. We check the hardware connections
+together during Day 1.
 
 The
 [Git guide](docs/course_git.md) explains how to keep your team's work on a branch,
@@ -103,7 +84,7 @@ describe these responsibilities and when to stop.
 
 ## About this release
 
-Release **0.0.15** contains exercises, theory notes, starter code, setup
+Release **0.0.16** contains exercises, theory notes, starter code, setup
 scripts, and offline trajectory analysis. Organizers provide any tested
 flight fallback and recordings separately. The starter does not implement a
 complete flight runner. Package versions are pinned for reproducible experiments.

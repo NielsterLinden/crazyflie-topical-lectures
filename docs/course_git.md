@@ -1,11 +1,9 @@
 # Get updates and share your work
 
 The [course project](https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures/)
-contains the exercises, notes and code on its `course` branch. When the project
-is public, you can clone and fetch it without an account. While it is private,
-you need a Nikhef GitLab account with repository access. An account is also
-needed to host a fork or open merge requests. The private teaching repository
-is separate.
+contains the exercises, notes and code on its `course` branch. You need a Nikhef
+GitLab account with repository access. Follow the
+[login instructions](software_setup.md#access-nikhef-gitlab) to access the project.
 
 ## Clone the course
 
@@ -13,9 +11,10 @@ Cloning downloads the notes and code into a new folder on your laptop, together
 with the history Git uses to merge later updates. It does not install Python or
 the course libraries; the installation guide covers that next.
 
-Install Git using the [setup guide](software_setup.md#native-setup). On Windows,
-open **PowerShell**; on macOS or Linux, open **Terminal**. After installing Git,
-open a new terminal window and check:
+Install Git before cloning: use `xcode-select --install` on macOS, your
+distribution package manager on Linux, or [Git for Windows](https://git-scm.com/downloads/win).
+On Windows, open **PowerShell**; on macOS or Linux, open **Terminal**.
+After installing Git, open a new terminal window and check:
 
 ```text
 git --version
@@ -23,6 +22,15 @@ git --version
 
 You should see a Git version number. If the command is not found, finish the Git
 installation and reopen the terminal before continuing.
+
+For HTTPS cloning after federated login, create a
+[personal access token](https://gitlab.nikhef.nl/-/user_settings/personal_access_tokens)
+in Nikhef GitLab. Give it a name, choose an expiry date after the lectures, select
+the `read_repository` scope and generate the token. Copy it before leaving the
+page; GitLab displays it only once. At Git's credential prompts, enter your GitLab
+username and paste this token as the **password**. See the
+[GitLab token guide](https://gitlab.nikhef.nl/help/user/profile/personal_access_tokens.md)
+for details.
 
 Choose where to keep the project. The commands below use your home folder
 (`$HOME` works in both PowerShell and macOS/Linux shells); you can instead use
@@ -36,17 +44,22 @@ git branch --show-current
 ```
 
 The last command should print `course`. Its README links the installation guide,
-daily programmes, exercises and supporting material. If Git asks for credentials,
-the project still requires authenticated access. With an SSH key registered in
-your Nikhef GitLab account, copy **Clone with SSH** from the course project's
+daily programmes, exercises and supporting material. Alternatively, follow
+[Nikhef's SSH-key setup instructions](https://kb.nikhef.nl/ct/Gitlab.html#user-setup) to register a key with
+your Nikhef GitLab account, then copy **Clone with SSH** from the course project's
 **Code** menu and use that URL in place of the HTTPS URL in the clone command.
 
 Check the downloaded files with `ls` on macOS/Linux or `Get-ChildItem` in
 PowerShell. You should see `README.md`, `code/`, `scripts/`,
 `requirements-hardware.txt` and `requirements-simulation.txt`.
 This `crazyflie-topical-lectures` folder is the **project root** used by the installation
-and exercise commands. Continue with the operating-system instructions in the
-[installation guide](software_setup.md#native-setup), from this folder.
+and exercise commands. With the operating-system prerequisites installed, return to
+[Create the project environment](software_setup.md#create-the-project-environment)
+in the installation guide, from this folder.
+
+If you open a new terminal, return to that folder with `cd`. For a clone in
+Downloads, use `cd "$HOME/Downloads/crazyflie-topical-lectures"` on macOS/Linux
+or `cd "$HOME\Downloads\crazyflie-topical-lectures"` in PowerShell.
 
 If cloning reports that `crazyflie-topical-lectures` already exists and is not empty,
 keep that folder intact. If it is your existing course clone, open it and use
@@ -115,7 +128,15 @@ commit alongside the release when comparing runs.
 On Nikhef GitLab, open the course project and choose **Fork** to create a copy in
 your account or team namespace. Include the `course` branch. GitLab's
 [fork instructions](https://gitlab.nikhef.nl/help/user/project/repository/forking_workflow.md)
-describe the account and visibility options. Keep the initial clone as the update source:
+describe the account and visibility options.
+
+For HTTPS pushes, create a token with `write_repository` scope using the token
+settings above. Enter it at Git's password prompt; if Git reuses the read-only
+token, remove the saved `gitlab.nikhef.nl` credential from your system's credential
+manager and retry. Alternatively, use the fork's **Clone with SSH** URL when
+adding its remote below, with your registered SSH key.
+
+Keep the initial clone as the update source and add your fork as the push destination:
 
 ```text
 git remote rename origin upstream
@@ -135,9 +156,3 @@ fixes, clearer instructions and reusable tooling are particularly useful. Share
 full exercise solutions within your team rather than adding them to the public
 starter by default. Course maintainers review proposed changes and incorporate
 them into the release source before publishing, so later releases preserve them.
-
-If you started from an offline ZIP, keep that folder and its work intact. Clone
-the repository into a separate folder, copy across only your intended source or
-notes changes, review the diff and commit them. Keep the existing environment
-with the old folder and run setup in the clone; virtual environments can contain
-absolute paths and should not be moved between folders.

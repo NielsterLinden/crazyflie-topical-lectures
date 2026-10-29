@@ -13,10 +13,10 @@ working/safety data and remain separate from this short write-up.
 
 ## Responsibility for the experiment
 
-Each group of **four participants per drone** owns its checks, configuration
+Each group of **four or five participants per drone** owns its checks, configuration
 changes and decision to fly. Work through the checklist together, recording what
 was checked, who checked it, the result and any uncertainty. A different member
-cross-checks each flight-critical item. **All four agree that the checks for a
+cross-checks each flight-critical item. **All group members agree that the checks for a
 stage are complete before moving to the next stage.** An unresolved check stays
 open; record it and investigate, use a checked fallback or stop that activity.
 

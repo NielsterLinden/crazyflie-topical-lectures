@@ -1,7 +1,7 @@
 # Day 1: baseline verification and measurements
 
 These checks establish a measured baseline for the later tuning experiments.
-The four participants work through the checklist together, cross-check each
+The group members work through the checklist together, cross-check each
 other's measurements and agree that a stage is complete before continuing.
 Record unresolved checks and the group's decision; use the
 [shared team responsibilities](practical_workflow.md#responsibility-for-the-experiment).

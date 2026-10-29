@@ -17,7 +17,7 @@ your comparisons. The
 [flight checks and deadlines for configuration changes](race_practical.md#r5-qualify-and-freeze-the-race-configuration)
 apply to all physical flight, including a fallback supplied by instructors.
 The [team responsibilities](practical_workflow.md#responsibility-for-the-experiment)
-describe the four-person cross-checks, shared decisions and flight roles.
+describe the team cross-checks, shared decisions and flight roles.
 
 ## For the scheduled exercises
 
