@@ -2,15 +2,18 @@
 
 [Repository overview](../README.md) | [Documentation guide](README.md)
 
-Run commands from the project folder unless shown otherwise. This is the folder
-containing `README.md`, `scripts/`, `code/`, `requirements-hardware.txt` and
-`requirements-simulation.txt`.
+Start with [GitLab access](#access-nikhef-gitlab), then follow
+[Native setup](#native-setup) to install the tools, download the course and
+create its Python environment.
 
-Before the lectures, install the native environment and complete the
+The native setup runs Python directly on your laptop. Its setup script creates
+a project-specific `.venv` folder containing the Python environment and lecture packages.
+
+Before the lectures, complete this setup and the
 [software-only checks](#native-simulations-and-notebooks). The [USB](#usb-setup) and
 [radio checks](#team-radio-configuration) follow when your group has its hardware.
 
-Use the native Python environment for cfclient and Crazyradio access.
+Use this Python environment for cfclient and Crazyradio access.
 **Neither Docker nor Colima is needed to connect to or fly a drone.**
 
 | Activity | Docker needed? |
@@ -46,11 +49,12 @@ For Mattermost login problems, contact Helpdesk as above.
 
 ## Native setup
 
-There are two separate steps:
+Follow these steps:
 
 1. Install any missing prerequisite tools for [macOS](#macos), [Linux](#linux)
    or [Windows](#windows). If they are already installed, skip their installation.
-2. [Set up this project](#create-the-project-environment) in the cloned folder.
+2. Clone the course using the commands below to download its files to your laptop.
+3. [Set up this project](#create-the-project-environment) in the cloned folder.
    This step is still needed when Git, Python and the other tools are installed.
 
 If you already cloned the course, open a terminal in that project folder.
@@ -83,10 +87,11 @@ and sharing improvements. If you have an offline ZIP snapshot, extract it into
 a writable folder and use the folder containing those same files for setup.
 
 
-The **project root** (or **package root** for a ZIP download) means this folder,
-not `code/` or `scripts/`. Commands such as `bash scripts/setup-unix.sh` look for
-files relative to the terminal's current folder. Changing folders in a file
-browser does not change an already-open terminal's current folder.
+After cloning, run commands from the project folder unless shown otherwise.
+This folder contains `README.md`, `scripts/`, `code/`, `requirements-hardware.txt`
+and `requirements-simulation.txt`. It is the **project root**.
+Commands such as `bash scripts/setup-unix.sh` look for
+files relative to the terminal's current folder.
 
 Check your location with `pwd` and list files with `ls` on macOS/Linux, or use
 `Get-Location` and `Get-ChildItem` in PowerShell. You should see the files and
