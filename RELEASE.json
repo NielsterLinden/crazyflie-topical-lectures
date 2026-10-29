@@ -3,7 +3,7 @@
     ".gitignore": "9cab7c3cd451432b85082614fb21f425d6d2dcdb2100203787792b7cd1c809e4",
     ".python-version": "7b55f8e67b5623c4bef3fa691288da9437d79d3aba156de48d481db32ac7d16d",
     "Dockerfile": "e883a1e39b9dbad7a4cb23121b01cb5a819ea98e969a31aff4375c85f79acb91",
-    "README.md": "e58b283bcc9ea052dd976220ad9ec6f7a3c585b18b8b6b4c03ada76d375bdf23",
+    "README.md": "df0399d50351388519b3b71f54e4ec5ec5f32c2960bc2f4d4829610ec8e3250f",
     "code/README.md": "470c6cbf8abd6063016b46024b4d4286a60b0edd98efb4af507f4b0ac531ce9c",
     "code/andreas/README.md": "26746dafd4b82c3c77037c984bb7715d3783fd90a433e7efe717c178586c28e3",
     "code/andreas/__init__.py": "8b664311d1e4e013419db710e32ca35dc77e2240679ef72fc1c35cd21878ad8e",
@@ -119,5 +119,5 @@
     "tl-config.env.example": "bde85e741ab885de53c3e7480a333160a2024deb75169b9bff9724bdde760bfe"
   },
   "source_revision": "40439b57d0be421d1f8a7d6274f000552b69187e",
-  "version": "0.0.14"
+  "version": "0.0.15"
 }
