@@ -16,7 +16,7 @@ from day2 import tracking
 
 class TrackingTests(unittest.TestCase):
     def position_demo(self):
-        notebook = json.loads((Path(__file__).parent / 'day2_kalman.ipynb').read_text())
+        notebook = json.loads((Path(__file__).parent / '01_tracking.ipynb').read_text())
         cells = {cell['id']: ''.join(cell['source']) for cell in notebook['cells']}
         namespace = dict(np=np)
         with redirect_stdout(io.StringIO()):
@@ -160,7 +160,7 @@ class TrackingTests(unittest.TestCase):
     def test_notebook_reference_is_optional_and_runs_when_enabled(self):
         from day2.notebook_tools import next_attempt
 
-        notebook = json.loads((Path(__file__).parent / 'day2_kalman.ipynb').read_text())
+        notebook = json.loads((Path(__file__).parent / '01_tracking.ipynb').read_text())
         source = ''.join(next(cell for cell in notebook['cells']
                               if cell['id'] == 'day2-tracking-reference')['source'])
         with tempfile.TemporaryDirectory() as temporary, redirect_stdout(io.StringIO()):

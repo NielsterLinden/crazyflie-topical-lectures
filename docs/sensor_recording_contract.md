@@ -9,7 +9,7 @@ All hand-held acquisition uses the [firmware-stop preparation](#prepare-the-dron
 Use the notebook's bounded capture cell or, from `code/`:
 
 ```text
-python -m day2.vertical_live --output ../data/vertical-training --prepare-for-handling
+python -m day2.vertical_live --output day2/data/vertical-training --prepare-for-handling
 ```
 
 Set the assigned `CF_URI` or add `--uri`. The helper sets and verifies `stabilizer.stop=1` and monitors supervisor lock and zero motor outputs. Wait for STOP VERIFIED, keep level and stationary for five seconds, then wait for Calibration check passed before gentle up/down motion over the same fixed flat floor. Hold still again by 15 seconds; capture ends at 20 seconds. The stop remains engaged. Put the drone down and power-cycle before flight/preflight checks.
@@ -47,6 +47,15 @@ The helper also records URI, channels, model assumptions and the firmware-stop c
 Measurement updates use each recorded timestamp after propagation over its measured dt. Acceleration approximates the preceding interval. Range and acceleration share one log block; its timestamp is a logging-time proxy rather than proof of synchronous sensor acquisition. The loader rejects duplicate/reversed times and gaps above 0.30 s.
 
 Subtract the initial stationary Z specific-force mean, including gravity, then multiply by 9.80665. Fit it before filtering, and retain it unchanged on validation input. The first five seconds must be consistent with level rest and a stable range. The teaching model accepts floor ranges from 0.02 to 2 m; these are experiment checks, not manufacturer performance specifications. Invalid later ranges skip that update. Off-axis acceleration and upside-down motion fail the level/gentle-motion checks. Subtle tilt, sensor latency and calibration uncertainty remain model limitations; do not hide them by changing Q/V.
+
+### Vertical analysis outputs
+
+Each notebook comparison saves `comparison.png`, timestamped run CSVs and
+`settings.json` in a fresh directory. CSV fields include height/velocity,
+C_zz/C_zv/C_vv, predicted residual and variance, chi-square, prospective range
+gain, acceptance and stationary-update flag. Settings retain calibration,
+input hashes and model assumptions. Real recordings support consistency checks;
+truth-based RMSE and coverage are available with simulation.
 
 ## Prepare the drone for hand-held recording
 
@@ -206,7 +215,7 @@ Do not assert exact acquisition-time or delay compensation from these CSVs alone
 
 ### Live capture using the supplied helper
 
-The [six-state examples](../code/day2/README.md#additional-six-state-experiments)
+The [six-state examples](../code/day2/six_state_reference.md)
 use `python -m day2.live` with the assigned URI and `--prepare-for-handling`.
 The helper reads three separate 50 ms log blocks: acceleration plus onboard
 position (six floats, 24 bytes), [quaternion](glossary.md#quaternion-and-so3)
@@ -214,7 +223,7 @@ position (six floats, 24 bytes), [quaternion](glossary.md#quaternion-and-so3)
 (16 bytes). No gyro, range, flow or raw Lighthouse-angle fusion is claimed.
 Close cfclient; only one client should use the radio connection.
 
-The optional `day2.notebook_tools.capture_live()` wrapper runs this six-state
+The optional `day2.extra_notebook_tools.capture_live()` wrapper runs this six-state
 logger from a notebook. It accepts 1-120 seconds of data and allows 30 additional
 seconds for connection and saving. Set `ready_for_motor_stop=True` after the
 surface, propeller-clearance and radio-client checks above. Only completed,

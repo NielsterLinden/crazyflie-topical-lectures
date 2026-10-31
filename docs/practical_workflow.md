@@ -95,9 +95,9 @@ this; the supplied simulations retain their own references and interfaces.
 
 ## Baseline verification before optimization
 
-The [Day 1 cfclient baseline-check guide](day_1_baseline_checks.md) covers physical
+The [hardware-check reference](day_1_baseline_checks.md) covers physical
 condition, identity/settings, logging, frame and timing measurements, battery and
-scheduled first-hover outcome, limits and readiness decision. Record the unchanged baseline and acceptance
+hover outcome, limits and readiness decision. Record the unchanged baseline and acceptance
 criteria first. Check and document corrections to setup faults; optimize only in a
 separate, controlled experiment. A failed check or missing measurement is not a pass.
 The mass-specific procedure below is part of that guide and applies on later days too.
@@ -108,8 +108,8 @@ Before powered flight, each team checks the actual flight configuration against
 the controller model, with motors stopped and a second team member cross-checking.
 Repeat this check after changing the battery, decks, cage, or other payload.
 The [battery checks](day_1_baseline_checks.md#battery-checks-for-every-flight)
-apply before and during every powered attempt: at least 4.10 V before takeoff,
-and controlled landing at 3.50 V under load or the first low-battery warning.
+give the voltage limits and actions for the selected flight type before, during
+and after each powered attempt.
 
 1. Weigh the complete flight-ready drone, including battery, decks, cage, cables,
    and attachments. Record the drone ID, configuration/photo, scale resolution,

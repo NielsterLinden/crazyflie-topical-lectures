@@ -2,8 +2,8 @@
 
 Optional prompts for today's section of your shared notebook or notes file.
 Aim for at most one page plus links to saved outputs.
-The [worksheet](../controller_practical.md#submission-and-closing-discussion)
-has the experiments; the [shared conventions](../practical_workflow.md) explain
+The [Day 1 notebooks](../../code/day1/README.md)
+contain the experiments; the [shared conventions](../practical_workflow.md) explain
 what to save.
 
 Team and code/settings: _names, revision, saved configuration_
@@ -16,7 +16,7 @@ Reproduce: _working directory and commands, data source and seeds_
 - What we would carry into Days 2-3, and what still needs checking:
 
 Discuss gains, units, noise, lag, limiting and integral action using the saved
-runs. There is no need to write up C1-C7 separately or repeat every plot here.
+runs. Link plots rather than copying them here.
 
 ## Before flight
 

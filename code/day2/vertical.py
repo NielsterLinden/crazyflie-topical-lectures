@@ -182,7 +182,23 @@ def check_steps(predict_step, update_step):
     print("Prediction and update checks passed.")
 
 
+def accept_range(residual, R, threshold):
+    """Accept a scalar residual within the chosen chi-square threshold."""
+    return threshold is None or residual**2 / R <= threshold
+
+
+def zero_velocity_update(x, C, V):
+    """Fuse a known-rest velocity measurement with finite variance V."""
+    H = np.array([0., 1.])
+    residual = -H @ x
+    R = H @ C @ H + V
+    K = C @ H / R
+    A = np.eye(2) - np.outer(K, H)
+    return x + K * residual, A @ C @ A.T + np.outer(K, K) * V
+
+
 def run(data, settings=None, *, predict_step=predict, update_step=update,
+        gate_step=accept_range, stationary_step=zero_velocity_update,
         residual_gate=None, alpha=.01, range_gap=None, stationary_intervals=()):
     if data is None:
         raise ValueError("Select data successfully before running an experiment.")
@@ -219,16 +235,12 @@ def run(data, settings=None, *, predict_step=predict, update_step=update,
                 R = float(C[0, 0] + settings.range_std_m**2)
                 K = C[:, 0] / R  # Prospective gain, retained even when the gate rejects the sample.
                 chi2 = residual**2 / R
-                accepted = threshold is None or chi2 <= threshold
+                accepted = gate_step(residual, R, threshold)
                 if accepted:
                     x, C = update_step(x, C, data.height_m[index], settings.range_std_m**2)
             if any(start <= stamp <= stop for start, stop in stationary_intervals):
-                H = np.array([0., 1.])
                 V = settings.stationary_velocity_std_m_s**2
-                gain = C @ H / (H @ C @ H + V)
-                x = x - gain * x[1]
-                A = np.eye(2) - np.outer(gain, H)
-                C = A @ C @ A.T + np.outer(gain, gain) * V
+                x, C = stationary_step(x, C, V)
                 constrained = True
         if (np.shape(x) != (2,) or np.shape(C) != (2, 2)
                 or not np.all(np.isfinite(x)) or not np.all(np.isfinite(C))):

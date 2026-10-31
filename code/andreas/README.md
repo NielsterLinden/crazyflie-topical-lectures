@@ -1,8 +1,8 @@
 # Andreas's controller experiments
 
-The Day 1 practical uses a position [PID](../../docs/glossary.md#pd-and-pid), velocity-to-tilt controller,
+These additional experiments use a position [PID](../../docs/glossary.md#pd-and-pid), velocity-to-tilt controller,
 [cascade](../../docs/glossary.md#cascade), toy plants and recorded-data helpers. Start with the
-[Day 1 software guide](../../docs/day_1_software.md),
+[optional controller comparisons](../../docs/controller_cli_examples.md),
 [worksheet](../../docs/controller_practical.md) and
 [guided notebook](day1_control.ipynb).
 
@@ -11,7 +11,7 @@ With the native environment activated, run from the course project root:
 ```text
 cd code
 python -m unittest andreas.test_practical
-python -m day1 --output ../day1/baseline --no-show
+python -m andreas.practical --output ../day1/baseline --no-show
 cd ..
 jupyter lab
 ```

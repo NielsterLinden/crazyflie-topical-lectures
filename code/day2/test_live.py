@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation
 from kalman.filter import FilterConfig
 from .live import CHANNELS, GRAVITY, LiveSession, SampleAssembler, draw_comparison, main, world_acceleration
 from kalman.recording import ReplayFilter, load_recording, replay
-from .notebook_tools import load_capture_overview, plot_capture_overview
+from .extra_notebook_tools import load_capture_overview, plot_capture_overview
 
 
 def packet(stream, values):

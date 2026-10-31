@@ -42,9 +42,9 @@ way to run simulations, rather than a prerequisite for the course.
 A lecture introduces control theory, feedback, stability and PID controllers.
 We use position and velocity [PID](docs/glossary.md#pd-and-pid) experiments to see
 how a controller follows a target, responds to disturbances and behaves near its
-limits. The afternoon ends with a shared first-hover session from 15:45 to 16:30.
-After completing the preflight checks, each team uses cfclient and the baseline
-onboard controller to practise takeoff, hover and landing.
+limits. The afternoon connects those models to first hover and position-loop
+experiments, with preflight checks and recorded-data analysis alongside the
+shared flight slots.
 
 **Detailed programme and exercises:** [Day 1 programme](docs/day_1_control.md).
 
@@ -67,8 +67,8 @@ an experimental choice is not ready for flight.
 **Detailed programme and exercises:** [Day 3 programme](docs/day_3_race.md).
 
 The [documentation guide](docs/README.md) links experiments, optional notes prompts,
-and theory notes. For the scheduled exercises, follow the day's programme and
-worksheet, opening the linked software and handling instructions when needed.
+and theory notes. The programmes give the timetable; the notebooks contain the
+working instructions and completion checks.
 The longer derivations, detector analogies, external courses and stretch goals
 are optional background or further exploration. Flight and handling checks apply
 whenever hardware is used.
@@ -84,7 +84,7 @@ describe these responsibilities and when to stop.
 
 ## About this release
 
-Release **0.1.1** contains exercises, theory notes, starter code, setup
+Release **0.1.2** contains exercises, theory notes, starter code, setup
 scripts, and offline trajectory analysis. Organizers provide any tested
 flight fallback and recordings separately. The starter does not implement a
 complete flight runner. Package versions are pinned for reproducible experiments.

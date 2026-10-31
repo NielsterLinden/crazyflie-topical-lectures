@@ -16,8 +16,9 @@ import numpy as np
 
 from .experiment_data import generate_data
 from .experiments import ExperimentCase, export_prepared, run_experiment
-from .notebook_tools import (_capture_receipt, _run_capture, add_log_config, capture, capture_live,
-                             compare, completed_capture, next_attempt, read_imu, select_data)
+from .notebook_tools import (_capture_receipt, _run_capture, add_log_config, capture,
+                             completed_capture, next_attempt, read_imu)
+from .extra_notebook_tools import capture_live, compare, select_data
 from kalman.filter import FilterConfig
 
 
@@ -251,7 +252,7 @@ class NotebookToolsTests(unittest.TestCase):
             self.assertEqual(retry.name, "attempt-004")
 
     def test_capture_checks_before_starting_radio_process(self):
-        with tempfile.TemporaryDirectory() as directory, patch("day2.notebook_tools._run_capture") as run:
+        with tempfile.TemporaryDirectory() as directory, patch("day2.extra_notebook_tools._run_capture") as run:
             output = Path(directory) / "capture"
             for kwargs in ({}, {"ready_for_motor_stop": True, "duration_s": 121},
                            {"ready_for_motor_stop": True, "duration_s": float("nan")},
@@ -269,12 +270,12 @@ class NotebookToolsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "failed"
             for error in (subprocess.TimeoutExpired(["logger"], 31), KeyboardInterrupt()):
-                with patch("day2.notebook_tools._run_capture", side_effect=error) as run:
+                with patch("day2.extra_notebook_tools._run_capture", side_effect=error) as run:
                     with self.assertRaises(TimeoutError if isinstance(error, subprocess.TimeoutExpired)
                                            else KeyboardInterrupt):
                         capture_live(output, "test://no-radio", duration_s=1, ready_for_motor_stop=True)
                     self.assertEqual(run.call_args.kwargs["timeout_s"], 31)
-            with patch("day2.notebook_tools._run_capture", return_value=
+            with patch("day2.extra_notebook_tools._run_capture", return_value=
                        subprocess.CompletedProcess([], 1, "", "motor outputs are nonzero")):
                 with self.assertRaisesRegex(RuntimeError, "motor outputs are nonzero"):
                     capture_live(output, "test://no-radio", ready_for_motor_stop=True)
@@ -303,7 +304,7 @@ class NotebookToolsTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "capture"
-            with patch("day2.notebook_tools._run_capture", side_effect=logger):
+            with patch("day2.extra_notebook_tools._run_capture", side_effect=logger):
                 recording, metadata = capture_live(output, "test://no-radio", ready_for_motor_stop=True)
             self.assertEqual(recording, output.resolve() / "prepared.csv")
             self.assertEqual(json.loads(metadata.read_text())["prepared_samples"], 3)
@@ -311,7 +312,7 @@ class NotebookToolsTests(unittest.TestCase):
             self.assertFalse(data.has_truth)
             # Success exit alone is insufficient if the logger says interrupted.
             status = "interrupted"
-            with patch("day2.notebook_tools._run_capture", side_effect=logger):
+            with patch("day2.extra_notebook_tools._run_capture", side_effect=logger):
                 with self.assertRaisesRegex(RuntimeError, "did not complete"):
                     capture_live(Path(directory) / "interrupted", "test://no-radio", ready_for_motor_stop=True)
 

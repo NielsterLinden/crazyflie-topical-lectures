@@ -1,62 +1,54 @@
 # Documentation guide
 
-The [hardware overview](drone_hardware.md) introduces the drone, Lighthouse and
-Flow decks. The [installation guide](software_setup.md) covers setup, and the
-[course overview](../README.md) describes the three days.
-
-| Day | Programme | Experiments | Optional notes prompts |
-| --- | --- | --- | --- |
-| 1 | [Feedback control](day_1_control.md) | [C1-C7](controller_practical.md) | [Day 1 notes](templates/controller_report.md) |
-| 2 | [Kalman filtering](day_2_kalman.md) | [E1-E7](kalman_filter_practical.md) | [Day 2 notes](templates/kalman_filter_report.md) |
-| 3 | [Race](day_3_race.md) | [R1-R7](race_practical.md) | [Day 3 notes](templates/race_report.md) |
-
-We compare results as we work. One shared team notebook or notes file is enough:
-at most one page per day plus links to outputs; no separate exercise reports
-are needed. The [shared conventions](practical_workflow.md) help others repeat
-your comparisons. The
-[flight checks and deadlines for configuration changes](race_practical.md#r5-qualify-and-freeze-the-race-configuration)
-apply to all physical flight, including a fallback supplied by instructors.
-The [team responsibilities](practical_workflow.md#responsibility-for-the-experiment)
-describe the team cross-checks, shared decisions and flight roles.
+Before the lectures, follow the [installation guide](software_setup.md).
+The [hardware overview](drone_hardware.md) introduces the drone and its sensors;
+the [glossary](glossary.md) is available as a reference.
 
 ## For the scheduled exercises
 
-Start with the day's programme and worksheet in the table above. They introduce
-the model and questions for each experiment and point to the relevant commands.
-Use the guides below at the indicated stage; there is no need to read every
-software reference page before starting.
+The programmes give schedules and learning goals. The notebooks are the working
+instructions.
 
-| Stage | Guides to use |
-| --- | --- |
-| Before Day 1 | [Software setup](software_setup.md) and its software-only completion checks. |
-| Updates and sharing | [Git workflow](course_git.md): team branches, merging course updates and proposing improvements. |
-| Day 1 C1-C7 and first hover | [Controller software](day_1_software.md), [hardware baseline checks](day_1_baseline_checks.md) and the guided notebook. Complete the applicable preflight checks before flying. |
-| Day 2 E2-E6 | [Sensor calibration](sensor_bias_calibration_exercise.md), the relevant [recording instructions](sensor_recording_contract.md) and [experiment commands](../code/day2/README.md). |
-| Day 3 R1-R7 | [Course/runner interface](course_interface.md), [gate survey](hoop_survey_challenge.md), [trajectory construction](trajectory_construction.md) and [post-flight analysis](post_flight_analysis.md). |
+| Day | Programme | Working material |
+| --- | --- | --- |
+| 1 | [Feedback control](day_1_control.md) | [Notebook guide](../code/day1/README.md) |
+| 2 | [Kalman filtering](day_2_kalman.md) | [Numbered notebooks](../code/day2/README.md) |
+| 3 | [Race](day_3_race.md) | [Day 3 notebook](../code/day3/day3_race.ipynb) |
 
-The [Day 2 notebook](../code/day2/day2_kalman.ipynb) and
-[Day 3 notebook](../code/day3/day3_race.ipynb) run the filter experiments, trajectory
-planning and recording analysis in the same Jupyter environment as Day 1.
-They are an alternative to the CLI commands, not extra work. Day 2 offers
-a bounded motor-free capture cell with explicit handling checks and an offline
-fallback. Flight uses the separate checked runner.
+Keep one shared team notebook or notes file, at most one page per day plus
+links to saved outputs. The [shared conventions](practical_workflow.md) cover
+team responsibilities and repeatable comparisons. Record where your
+data came from and complete the handling and flight checks, including with
+shared hardware or fallback data.
 
-Consult the [glossary](glossary.md) when a term is unfamiliar. Record where your
-data came from and complete the handling and flight checks, including when a
-fallback is used. The longer notes below are optional reading, not additional
-preparation or submissions.
+## Practical reference
+
+Look up these details as needed during the notebooks:
+
+- [Hardware baseline checks](day_1_baseline_checks.md), including battery checks,
+  and the [race flight checklist](race_practical.md).
+- [Sensor calibration](sensor_bias_calibration_exercise.md) and
+  [recording formats and acquisition](sensor_recording_contract.md).
+- [Gate survey](hoop_survey_challenge.md), [course files and flight interface](course_interface.md)
+  and [post-flight plots](post_flight_analysis.md).
+- [Git updates and sharing](course_git.md) and [code layout and tests](../code/README.md).
 
 ## Further reading: theory and experimental context
 
-These notes expand on the lectures and worksheet models. Read the sections that
-interest you; the full derivations and detector comparisons are additional material.
+The following are optional background or extensions:
 
-- [Practical glossary](glossary.md): control, estimation and flight terminology.
+- [Additional controller comparisons](controller_practical.md) and
+  [CLI tools](controller_cli_examples.md).
+- [Filter conventions and extensions](kalman_filter_practical.md) and
+  [six-state experiments](../code/day2/six_state_reference.md).
+- [Planner bounds, limitations and jerk-continuity extension](trajectory_construction.md).
 - [Rotations and quaternions](rotations_and_quaternions.md).
 - [Quadrotor equations of motion](quadrotor_equations_of_motion.md).
-- [Detector-system terminology](detector_system_analogies.md).
-- [Collider-tracking Kalman analogies](collider_tracking_kalman_analogies.md).
-- [Gravitational-wave feedback analogies](gravitational_wave_control_analogies.md).
+- [Detector-system analogies](detector_system_analogies.md),
+  [collider-tracking Kalman analogies](collider_tracking_kalman_analogies.md)
+  and [gravitational-wave feedback analogies](gravitational_wave_control_analogies.md).
+- Optional notes prompts for [Day 1](templates/controller_report.md),
+  [Day 2](templates/kalman_filter_report.md) and [Day 3](templates/race_report.md).
 
 ### Further courses and worked examples
 
@@ -81,23 +73,3 @@ interest you; the full derivations and detector comparisons are additional mater
 These are optional references; the supplied environment and exercises contain
 the material needed for the three days.
 
-## Software reference
-
-These pages provide commands and implementation detail for the exercise route
-above. Consult the relevant sections while working; they are not a separate
-reading assignment.
-
-- [Day 1 controller experiments](day_1_software.md): controller models,
-  guided notebook, simulation/replay and motor-disabled sign checks.
-
-- [Course files and flight commands](course_interface.md), with an example for checking file formats.
-- [Day 2 sensor recording and replay](sensor_recording_contract.md), with an example of the CSV layout.
-- [Sensor calibration](sensor_bias_calibration_exercise.md).
-- [Gate measurement with the supplied survey tool](hoop_survey_challenge.md).
-- [Trajectory construction and preview](trajectory_construction.md).
-- [Starter APIs and simulations](../code/day2/README.md).
-- [Code layout and tests](../code/README.md).
-- [Post-flight trajectory analysis](post_flight_analysis.md).
-
-Raw observations, onboard estimates, simulated truth, and independent crossing
-observations have different meanings; distinguishing them helps us interpret the results.

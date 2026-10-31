@@ -1,8 +1,12 @@
-# Day 1 software and bring-up
+# Optional controller comparisons and replay
+
+These additional single-axis experiments use `andreas.practical` and
+`code/andreas/day1_control.ipynb`. The scheduled practical follows the
+[Day 1 notebooks](../code/day1/README.md); these comparisons are optional.
 
 We use Andreas's controllers and toy [plants](glossary.md#plant) to compare position and velocity
 feedback, then replay recordings and check signs with motors disabled. The
-runner saves results from the same controller classes throughout. Follow the
+runner saves results from the same controller classes throughout. For ideas, see the
 [C1-C7 worksheet](controller_practical.md); the [short notes template](templates/controller_report.md)
 is optional.
 
@@ -16,7 +20,7 @@ setup scripts. From the repository/package root:
 ```text
 cd code
 python -m unittest andreas.test_practical
-python -m day1 --output ../day1/baseline --no-show
+python -m andreas.practical --output ../day1/baseline --no-show
 cd ..
 jupyter lab
 ```
@@ -70,13 +74,13 @@ intermediate velocity targets and true versus noise-perturbed states.
 Run from `code/` after activation:
 
 ```text
-python -m day1 --kd 0 --output ../day1/lower-damping --no-show
-python -m day1 --kd 1.2 --output ../day1/higher-damping --no-show
-python -m day1 --kv 6 --output ../day1/velocity-low --no-show
-python -m day1 --kv 18 --output ../day1/velocity-high --no-show
-python -m day1 --bias 0.08 --output ../day1/disturbance-pd --no-show
-python -m day1 --bias 0.08 --ki 0.4 --output ../day1/disturbance-pid --no-show
-python -m day1 --position-noise-std 0.01 --velocity-noise-std 0.03 --seed 20 --output ../day1/noise-20 --no-show
+python -m andreas.practical --kd 0 --output ../day1/lower-damping --no-show
+python -m andreas.practical --kd 1.2 --output ../day1/higher-damping --no-show
+python -m andreas.practical --kv 6 --output ../day1/velocity-low --no-show
+python -m andreas.practical --kv 18 --output ../day1/velocity-high --no-show
+python -m andreas.practical --bias 0.08 --output ../day1/disturbance-pd --no-show
+python -m andreas.practical --bias 0.08 --ki 0.4 --output ../day1/disturbance-pid --no-show
+python -m andreas.practical --position-noise-std 0.01 --velocity-noise-std 0.03 --seed 20 --output ../day1/noise-20 --no-show
 ```
 
 These settings define simulation experiments. Hardware gains require separate
@@ -102,14 +106,14 @@ their respective command layers; electrical energy would require a power model.
 First verify the file format without hardware, from `code/`:
 
 ```text
-python -m day1 --mode replay --recording ../examples/day1-state.synthetic.csv --output ../day1/replay-format --no-show
+python -m andreas.practical --mode replay --recording ../examples/day1-state.synthetic.csv --output ../day1/replay-format --no-show
 ```
 
 These example data were generated in software. For experimental evidence,
 use a supplied real recording or a motor-disabled capture after the team's checks:
 
 ```text
-python -m day1 --mode handcheck --duration 20 --output ../day1/handcheck --no-show
+python -m andreas.practical --mode handcheck --duration 20 --output ../day1/handcheck --no-show
 ```
 
 Set the assigned `CF_URI` first (or supply `--uri`). With the drone on a stable
@@ -172,24 +176,12 @@ held-out validation and uncertainty; neither a best-lag correlation nor a fit
 to one flight establishes a stable controller. This extension needs additional
 analysis time/recordings, rather than being hidden inside C4's 25 minutes.
 
-In the [15:45 first-hover session](day_1_control.md#first-hover-1545-1630), cfclient
-sends takeoff and landing commands, while the qualified onboard estimator and
-controller handle stabilization and hover. [B5](day_1_baseline_checks.md#b5-battery-and-first-supervised-hover)
-describes the procedure and logging.
-
-### Optional extension: fly with the participant controller
-
-This extension has its own time allocation and flight qualification.
-
-The flight sequence is: takeoff after preflight checks, settled hover,
-transfer to the participant position PID with a continuous command at the
-switch (a [bumpless handover](glossary.md#bumpless-handover)), a bounded one-axis step,
-logging, abort/landing, then comparison with the simulation. Instructors provide
-the qualified launcher/run card described in the [course interface](course_interface.md).
-Its Day 1 velocity-command experiment is distinct from the Day 3 position-command
-runner. The card identifies controller class/gains, frames, height convention,
-stop path, limits and telemetry. Test these on the configured drone before
-applying the participant controller in flight.
+For the scheduled real-drone experiments, follow
+`code/day1/drone_03_position_loop.ipynb` and its preflight and abort instructions.
+It provides the flight sequence and controller handover. A continuous command at the
+switch is called a [bumpless handover](glossary.md#bumpless-handover).
+The CLI models above have their own gain conventions; use the gains and
+interfaces defined by the notebook when following its flight experiment.
 
 Before velocity-command flight, explicitly map world-frame output into the
 firmware command frame. With fixed yaw, `u_body = Rz(yaw)^T * u_world` when the

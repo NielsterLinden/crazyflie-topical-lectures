@@ -3,13 +3,14 @@
 `controller.py` implements an acceleration-command PD controller with reference
 acceleration feed-forward, acceleration/bank limits and effort diagnostics.
 `trajectory.py` supplies the teaching reference position, velocity and acceleration
-used by control and estimation examples. Both are reusable computations; the
-interactive comparison lives in `day1/feedforward.py`.
+used by control and estimation examples. Both are reusable computations.
+For a notebook experiment with smooth references and feed-forward, see
+[Day 1 trajectories](../day1/extra_2Dsim_03_trajectories.ipynb), which uses the
+Day 1 2D simulator and its own controller implementation.
 
 From `code/`:
 
 ```text
-python -m day1.feedforward
 python -m unittest flight_control.test_controller
 ```
 
@@ -19,8 +20,8 @@ gravity-excluded world acceleration; attitude and motor control remain onboard
 in a corresponding hardware interface. The simulation closes feedback using
 truth, independently of the participant Kalman filter.
 
-Day 1's core [Andreas controllers](../andreas/README.md) use position-to-velocity
-and velocity-to-tilt interfaces. Their gain units and plant assumptions differ
+The [Day 1 notebooks](../day1/README.md) develop nested loops from position
+through velocity and tilt to motor commands. Their gain units and plant assumptions differ
 from this acceleration-command extension. Keep limits, reference and metrics
 matched when comparing P, PD and feed-forward; neither toy model qualifies flight.
 

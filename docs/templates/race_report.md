@@ -2,7 +2,7 @@
 
 Optional prompts for the same shared notebook or notes file. Aim for at most
 one page plus links. See the
-[worksheet](../race_practical.md#submission-and-closing-discussion) and
+[notes guidance](../race_practical.md#team-notes-and-closing-discussion) and
 [shared conventions](../practical_workflow.md).
 
 Team, code/settings and course: _names, checked configuration IDs, survey/calibration source_

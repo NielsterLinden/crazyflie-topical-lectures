@@ -56,9 +56,8 @@ python scripts/measure_hoop.py --shape rectangle --name gate-2 --output survey/g
 Use a different name/output for each physical gate. Do not run both commands for
 the same gate unless comparing fits. Existing files are protected unless `--force`
 is supplied. Default sample spacing is 0.02 m; `--sample-spacing 0.01` retains a
-denser trace. The trace starts and stops at the laptop's Enter prompts; turning
-the drone upside down and back does not trigger recording. Move slowly and watch
-the physical drone. The script logs position and sends no arming or flight commands;
+denser trace. The trace starts and stops at the laptop's Enter prompts. Move slowly
+and watch the physical drone. The script logs position and sends no arming or flight commands;
 it sets only the firmware stop parameter before acquisition and leaves it engaged.
 Keep clear of propellers while handling. Afterwards, place the drone down and
 power-cycle it before the normal preflight checks for flight. Missing stop/status

@@ -241,21 +241,15 @@ arrange a permitted installation before arrival or share a working group laptop.
 From the project root, with `.venv` active, run:
 
 ```bash
-cd code
-python -m day1 --output ../day1/setup-check --no-show
-python -m unittest andreas.test_practical
-cd ..
+python code/day1/testing/test_module.py
 python -m ipykernel install --sys-prefix --name crazyflie-lectures --display-name "Crazyflie lectures (.venv)"
 jupyter lab
 ```
 
-**Expected:** the simulation writes CSV files, `comparison.png` and
-`settings.json` under `day1/setup-check`; the tests finish with `OK`. Open the
-saved PNG to check that the plots render. Use a new output name, such as
-`day1/setup-check-2`, when repeating the simulation; existing results are preserved.
+**Expected:** the simulator tests report that all tests passed.
 
 Open Jupyter's printed URL and, in its file browser, open
-**`code/andreas/day1_control.ipynb`**. Start Jupyter from the project root as
+**`code/day1/00_jupyter_example.ipynb`**. Start Jupyter from the project root as
 shown above so the notebooks can also open links into `docs/`.
 Select the **Crazyflie lectures (.venv)** kernel. Check it by running this in
 a notebook cell:
@@ -268,14 +262,20 @@ print(sys.executable)
 The path should point into this project's `.venv`. If it differs from the
 terminal check, select **Crazyflie lectures (.venv)** or close Jupyter and restart
 it from the activated terminal. The kernel-registration command above stores
-this kernel inside the project's environment. Give `run_id` in the notebook's first code cell
-a fresh value before each run, then run the supplied cells. They use simulations
-and the included synthetic replay data. Results appear under `day1/notebook/`.
+this kernel inside the project's environment. Run the primer's cells from top
+to bottom and check that its plots appear below the cells. The remaining
+[Day 1 notebooks](../code/day1/README.md) cover the scheduled controller experiments;
+the interactive keyboard simulation uses a separate Qt plot window and is checked
+during the Day 1 software session.
 
 Days 2 and 3 use the same environment and kernel. When you reach those sessions,
-open [day2/day2_kalman.ipynb](../code/day2/day2_kalman.ipynb) or
+open [day2/01_tracking.ipynb](../code/day2/01_tracking.ipynb) or
 [day3/day3_race.ipynb](../code/day3/day3_race.ipynb) in Jupyter for the scheduled
-filter experiments, trajectory planning and recording analysis. Their default paths
+filter experiments, trajectory planning and recording analysis. On Day 2, continue
+with [02 calibration](../code/day2/02_calibration.ipynb) and
+[03 height and velocity](../code/day2/03_height_velocity.ipynb), running each
+notebook's setup in its own kernel. Results go under `code/day2/data/<run_id>/`.
+Their default paths
 work offline; live recordings and measured courses can be selected during the
 practicals. There is no extra software installation or pre-lecture assignment.
 

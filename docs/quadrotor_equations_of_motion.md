@@ -558,10 +558,10 @@ The reduced simulations treat the
 firmware attitude controller and motor dynamics as an inner-loop plant. The
 bank constraint reconnects that reduced model to thrust-vector feasibility.
 
-Day 1 also uses Andreas's position-to-velocity and velocity-to-tilt controllers.
+Additional controller experiments use position-to-velocity and velocity-to-tilt controllers.
 Their outputs are m/s and degrees respectively. The toy velocity-lag
 and tilt/drag plants approximate different onboard loop boundaries. Follow the
-[Day 1 software guide](day_1_software.md) for their equations, gain units and
+[optional controller tools](controller_cli_examples.md) for their equations, gain units and
 world/body-frame mapping; numerical gains cannot be transferred between layers.
 
 ## Relation to IMU measurements

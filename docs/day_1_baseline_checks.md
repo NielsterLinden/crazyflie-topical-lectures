@@ -1,6 +1,17 @@
-# Day 1: baseline verification and measurements
+# Hardware checks and cfclient reference
 
-These checks establish a measured baseline for the later tuning experiments.
+This is the shared reference for hardware readiness, battery limits and
+cfclient diagnostics across the three days. The [programme](day_1_control.md#schedule)
+gives the timetable; the [Day 1 notebooks](../code/day1/README.md) contain the
+working experiments and flight sequence.
+
+Use B1, B2 and B6 to check the fitted drone and intended flight configuration,
+and B5's battery checks before every flight. Notebook measurements can supply
+the evidence for B3-B4; the cfclient procedures below offer another way to
+inspect and record it. B5's cfclient hover is an alternative when the notebook
+flight is unavailable.
+
+These checks establish a measured baseline for later tuning experiments.
 The group members work through the checklist together, cross-check each
 other's measurements and agree that a stage is complete before continuing.
 Record unresolved checks and the group's decision; use the
@@ -12,11 +23,7 @@ Detailed sensor-bias/noise calibration belongs to Day 2.
 Its [recording guide](sensor_recording_contract.md) adds the raw/derived sensor
 channels and timing metadata not covered by this Day 1 baseline log.
 
-Use the opening software-verification slot for connection and identity, then
-collect the remaining unpowered evidence alongside C1/C2. The programme reserves
-15:45-16:30 for the first supervised takeoff-hover-land session using cfclient and
-the qualified onboard controller, not participant-written code. The
-[glossary](glossary.md) explains control and telemetry terms used below. Without
+The [glossary](glossary.md) explains control and telemetry terms used below. Without
 working hardware or passing flight checks, use instructor-supplied recordings and label the
 source and outstanding live checks. A replay does not qualify a drone to fly.
 
@@ -51,15 +58,20 @@ mass-setting applicability, original/current/stored settings, and reboot readbac
    Record current values, applicable controller gains/mass settings, and any
    saved settings rather than changing them to match another team's drone.
    Check the intended script for selection overrides and its in-run readbacks.
-5. In **Lighthouse Positioning**, verify the shared geometry/calibration
+5. For Lighthouse flights, in **Lighthouse Positioning**, verify the shared geometry/calibration
    is present and the expected base stations are visible. Record the geometry
    version and frame convention; do not move stations or overwrite geometry as
-   part of this baseline. Gate-location surveying remains the Day 3 exercise.
+   part of this baseline. For the Flow-deck experiments, use the notebook's
+   position/height checks and local-frame convention. Gate-location surveying
+   remains the Day 3 exercise.
 
 **Record:** console extract, URI/drone identity, firmware/client versions, deck
 inventory, parameter snapshot, geometry ID, and any mismatch or warning.
 
 ## B3: create and save cfclient logs
+
+Use the notebook's saved data when it covers the measurements needed below.
+For additional cfclient diagnostics, create the relevant logging blocks as follows.
 
 For stationary and hand-held measurements, place the drone on the surface and
 connect cfclient. In **Parameters > stabilizer > stop**, enter `1`, press Enter,
@@ -137,22 +149,32 @@ time-series plots, per-block timing statistics and explicitly unmeasured quantit
 ### Battery checks for every flight
 
 For the Crazyflie 2.1-class drones with a standard **single-cell (1S) LiPo**,
-we use these conservative course operating limits:
+start with a fully charged, checked pack. Inspect the pack and leads: a swollen,
+punctured, leaking, damaged or unusually hot pack stays out of use; hand it to
+the organizer for safe handling. With USB disconnected and motors stopped for
+at least 60 s, read `pm.vbat` in the notebook's status cell or cfclient before
+takeoff. Close cfclient before connecting from the notebook.
 
-| When | Check and action |
-| --- | --- |
-| Before connecting or charging | Inspect the pack and leads. A swollen, punctured, leaking, damaged or unusually hot pack stays out of use; hand it to the organizer for safe handling. |
-| Before takeoff | With USB disconnected and motors stopped for at least 60 s, read `pm.vbat` in cfclient. Start at **4.10 V or above**; below that, recharge or use another checked pack. |
-| During flight | Monitor `pm.vbat`. Begin a controlled landing at **3.50 V or below under load**, or at any low-battery warning, whichever occurs first. Land earlier for weak lift, unusual voltage sag or unstable flight. |
-| After landing | Save resting/loaded voltage and battery ID. Recharge before another flight if the pre-takeoff check fails. Let a warm pack cool to room temperature before charging. |
+The flight types use different limits:
 
-The 4.10 V start and 3.50 V landing thresholds are course choices for short
-flights with reserve, rather than manufacturer discharge limits or estimates of
-remaining flight time. Check them on the fitted drone/battery/cage during the
-rehearsal. Voltage under load depends on battery condition and thrust demand;
-passing the resting-voltage check still requires a satisfactory first hover.
-These checks supplement the firmware protections. The operator monitors them;
-the lecture scripts are not assumed to enforce them automatically.
+| Flight | Before takeoff | During flight |
+| --- | --- | --- |
+| Day 1 notebook experiments and cfclient baseline hover | The notebook specifies **3.5 V at rest** as the lower limit; below this, recharge or use another checked pack. Use a full battery for tuning comparisons. | The notebook control loop lands **below 3.1 V under load**. For the cfclient hover alternative, the operator monitors voltage and lands at that threshold. |
+| Race | Start at **4.10 V or above**; below this, recharge or use another checked pack. | The operator monitors voltage and begins a controlled landing at **3.50 V or below under load**, or at the first low-battery warning. |
+
+The Day 1 values follow `drone_03_position_loop.ipynb` and its existing helper.
+Its automatic voltage check runs in the control loop after takeoff and settling;
+power telemetry is recorded for later analysis. Follow the notebook's abort
+instructions for weak lift, unusual sag, excessive drift/tilt or unstable flight.
+The race uses a larger battery reserve; its tools need a checked live display
+or enforcement path for those stricter limits. These thresholds describe the
+respective experiments, rather than manufacturer discharge limits or estimates
+of remaining flight time. Check the fitted drone/battery/cage during rehearsal.
+Passing the resting-voltage check still requires a satisfactory first hover.
+
+After landing, save resting/loaded voltage and battery ID. Recharge before
+another flight if its pre-takeoff check fails. Let a warm pack cool to room
+temperature before charging.
 
 For charging, connect the battery to the Crazyflie and use its onboard USB
 charger. On the surface, connect cfclient and set/check **Parameters > stabilizer > stop = 1**;
@@ -170,8 +192,10 @@ establish compatible charging and flight limits before powered work.
 
 ### First hover
 
-During the [scheduled first-hover session](day_1_control.md#first-hover-1545-1630),
-once your team has completed B1-B4 and verified the B6 limits:
+The notebook gives the normal flight sequence. For the cfclient baseline-hover
+alternative during the [flight session](day_1_control.md#flight-session),
+complete the physical, configuration, battery and B6 checks using the notebook
+measurements or the cfclient diagnostics above:
 
 1. Clear the flight volume and have the named emergency-stop operator ready.
    After the firmware-stop measurements/charging, place the drone down and
@@ -235,16 +259,14 @@ correction and the new verified baseline. The pilot and stop operator confirm
 that all flight-critical checks pass before takeoff, following the whole group's
 agreement to proceed.
 
-Keep one preflight record, original logs/settings and B4/B5 plots. The suggested
-`C1/mass-check.md`, `C2/baseline-checks.md` and `C2/baseline-checks.csv` are optional
-ways to organize it, not three required reports. Link the record from your notes
-and C7 handover. Without hardware, use shared recordings and list the live checks
+Keep one preflight record with original logs/settings and B4/B5 plots. Link
+existing notebook measurements and the record from your team notes.
+Without hardware, use shared recordings and list the live checks
 still needed; the instructor-supplied recordings can be reused across teams.
 
 ## Optimization is a separate experiment
 
-After the baseline is frozen, C3-C6 study Andreas's position/velocity gains,
-integral action, anti-windup, lag, noise and velocity/tilt limiting under matched conditions.
+For tuning, follow the notebook experiment and compare matched conditions.
 Start in simulation, preserve the unchanged baseline, change one identified
 factor at a time, and retain failures and held-out validation. Simulator gains
 are not interchangeable with onboard PID parameters. Hardware optimization needs

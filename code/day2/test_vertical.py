@@ -24,6 +24,49 @@ from race_common.motor_stop import LOCKED_BIT
 
 
 class VerticalTests(unittest.TestCase):
+    def test_visible_notebook_model_gate_and_rest_update_drive_replay(self):
+        notebook = json.loads(Path(__file__).with_name('03_height_velocity.ipynb').read_text())
+        cells = {cell['id']: ''.join(cell['source']) for cell in notebook['cells']}
+        namespace = {'np': np, 'vertical': v}
+        mechanics = cells['day2-mechanics']
+        for name, expression in {
+            'x_predicted': 'F @ x + B * acceleration',
+            'C_predicted': 'F @ C @ F.T + Q',
+            'K': 'C_predicted @ H / R',
+            'x_filtered': 'x_predicted + K * residual',
+        }.items():
+            mechanics = mechanics.replace(f'{name} = None  #', f'{name} = {expression}  #')
+        exec(mechanics, namespace)
+        exec(cells['day2-gate-policy'], namespace)
+        namespace['settings'] = v.Settings()
+        namespace['replace'] = __import__('dataclasses').replace
+        exec(cells['day2-rest-settings'], namespace)
+        gate = namespace['our_accept_range']
+        for residual, variance, threshold, accepted in (
+                (.25, .0625, 1., True), (.26, .0625, 1., False), (10., .01, None, True)):
+            self.assertEqual(gate(residual, variance, threshold), accepted)
+            self.assertEqual(v.accept_range(residual, variance, threshold), accepted)
+        x, C = np.array([.3, .2]), np.array([[.04, .01], [.01, .09]])
+        rest_step = namespace['our_zero_velocity_update']
+        corrected, covariance = rest_step(x, C, .0004)
+        for actual, expected in zip((corrected, covariance), v.zero_velocity_update(x, C, .0004)):
+            np.testing.assert_allclose(actual, expected)
+        self.assertLess(abs(corrected[1]), abs(x[1]))
+        self.assertNotEqual(corrected[0], x[0])  # Cross covariance also corrects height.
+        self.assertGreater(np.linalg.eigvalsh(covariance).min(), 0.)
+        data = v.with_outlier(v.select())
+        with patch.object(v, 'accept_range', wraps=gate) as accept, \
+                patch.object(v, 'zero_velocity_update', wraps=rest_step) as rest:
+            result = v.run(data, predict_step=namespace['our_predict'],
+                           update_step=namespace['our_update'], gate_step=accept,
+                           stationary_step=rest, residual_gate=lambda dimension, alpha: 9.,
+                           stationary_intervals=[(16., 19.)])
+            self.assertEqual(accept.call_count, np.isfinite(result['chi2']).sum())
+            self.assertEqual(rest.call_count, result['stationary_update'].sum())
+            self.assertGreater(rest.call_count, 0)
+        rejected = v.run(data, gate_step=lambda residual, R, threshold: False)
+        self.assertFalse(rejected['accepted'].any())
+
     def test_e2_plot_labels_frozen_normalization_and_undefined_constant_channels(self):
         import matplotlib.pyplot as plt
 

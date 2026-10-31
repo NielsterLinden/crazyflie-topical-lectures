@@ -55,16 +55,14 @@ logs alone are not the raw-sensor acquisition required here.
 
 ## E2 core: 45 minutes
 
-The scheduled exercise is a stationary IMU check and one held-out bias/noise
-comparison. Inventory all installed sensors, but choose the gyro for the
-quantitative comparison. Use accelerometer data to check the stationary gravity
-signal. E3 separately estimates ToF range spread during its initial stationary
-check. Gyro covariance and range variance describe different observations.
-Full calibration of every sensor is further work.
+Reuse Day 1's sensor checks. Compare stationary gyro bias/noise on calibration
+and held-out data, and check the accelerometer gravity signal. E3 applies the
+method to acceleration/ToF; E6 tests frozen choices. Gyro covariance remains a
+diagnostic. Broader sensor calibration is optional.
 
 | Minutes | Activity | Result |
 | --- | --- | --- |
-| 0-5 | Inventory the installed sensors and identify gyro/acceleration channels, units, frame and existing onboard corrections. | A short channel/reference list; mark other sensors as checked, supplied-data only, unavailable or not studied. |
+| 0-5 | Reuse Day 1's drone identity, axes, units and drift observations. Check changes and identify sensor-level gyro/acceleration channels and onboard corrections. | Update the existing notes with the IMU channels and their stationary references. |
 | 5-15 | With `stabilizer.stop=1` set and checked in cfclient, record 60 s at rest for calibration and a separate 60 s at rest for validation, using the same mounting and conditions. | Two labelled recordings, or the checked supplied pair if acquisition is blocked. |
 | 15-30 | Inspect the stationary IMU signals; estimate per-axis gyro bias and covariance from the calibration recording. Predict whether an additional correction is justified. | Bias/noise estimates, one comparison plot and a stated correction decision. |
 | 30-40 | Apply that decision to the separate validation recording without refitting. Compare its residual mean and spread before/after. | Held-out evidence, including a failed correction if that is the result. |
@@ -128,34 +126,18 @@ decision to correct and interpretation of the validation remain the team's work.
 
 ### Completion check and handover to E3
 
-Keep the following with today's shared notes; one plot with several panels is
-enough, and no separate calibration report is needed:
+Keep the notebook's calibration summary and one held-out comparison, including
+source recordings, units/frame and the correction decision. E2 is complete when
+the team can explain the gyro result, the 1 g check and the reference's limits.
+Demonstrated improvement or justified retention of the existing calibration are
+both useful outcomes. Record an unidentifiable bias as unknown; label actual-drone
+checks as unperformed when using supplied or simulated data.
 
-- The sensor inventory, recording IDs and conditions, with each channel's
-  raw/derived status, units/frame and existing onboard correction.
-- Per-axis gyro residual means and covariance, the accelerometer gravity check,
-  and one held-out raw/corrected (or justified unchanged) comparison.
-- A small JSON/CSV containing the tested values, units, frame, data sources and
-  the decision to apply or retain each correction. Mark unmeasured parameters
-  explicitly; keep onboard and offline corrections separate.
-- The E3 handover: note which calibration checks were performed. E3 obtains its
-  range-noise assumption from a separate stationary accelerometer/ToF recording;
-  the gyro covariance remains a separate sensor diagnostic.
-
-E2 is complete when the team can explain the gyro result, the gravity check,
-what the reference identifies and how the held-out comparison supports its
-decision. Accept demonstrated improvement **or justified retention of the existing
-calibration**. Record an unidentifiable bias as unknown. A checked supplied
-calibration/validation pair completes the same analysis if live acquisition
-fails; retain its source and label actual-drone checks as unperformed.
-
-At 45 minutes, save unresolved questions and continue E3 on the supported
-recording subset or controlled fallback. Optional studies below do not block
-offline tuning. A failed sensor/frame check does block using that affected live
-stream until resolved; another drone's calibration is not evidence about the
-team's hardware. Powered flight also requires the
-[team's flight checks](practical_workflow.md#responsibility-for-the-experiment)
-and a suitable verified onboard configuration.
+At 45 minutes, save unresolved questions and continue E3 with supported data.
+E3 obtains its acceleration/range calibration separately; gyro covariance
+describes a different sensor. A failed sensor/frame check prevents using that
+affected stream until resolved. Powered flight still requires the
+[team's flight checks](practical_workflow.md#responsibility-for-the-experiment).
 
 ## Optional sensor characterization
 

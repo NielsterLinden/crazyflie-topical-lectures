@@ -14,26 +14,28 @@ The [participant trajectory tool](trajectory_construction.md) builds and plots
 ordered measured crossings and laps without a radio. Its exported course uses
 this format; its polynomial reference is not automatically the runner's path.
 
-## What instructors provide, and when
+## Flight-tool handover
 
-If offering optional powered work after Day 1 C7, agree a
-[run card](glossary.md#run-card-and-configuration-freeze): a short record of the tested flight
-interface, command units, actual controller/estimator, operator and stop path.
-For Andreas's Day 1 position-loop experiment, it also identifies the qualified
-velocity-command launcher/sequence, fixed-yaw/world-to-body mapping, transfer
-between controllers with a continuous command at the switch
-([bumpless handover](glossary.md#bumpless-handover)), step bounds and
-returned state/command recording. That experiment is
-not the position-setpoint course launcher below. Without a qualified Day 1
-launcher, complete the hand check using the [firmware-stop preparation](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording)
-or supplied-data replay and
-record powered application as outstanding. There is no expectation to build a
-new launcher for this event; simulation and replay cover the core.
-Before Day 2 E2/E6, share one reusable [recording pack](sensor_recording_contract.md).
-Before Day 3 R1, make the checked flight program available on a shared laptop (or
-separately supplied tools), its exact launch command/version, the limits, race
-rules and times. These are event-specific resources, **not files in the participant
-ZIP**. No public reference implementation or survey answer is required.
+Day 1's `drone_02_handtest.ipynb` checks a position-to-velocity callback with
+motors stopped. `drone_03_position_loop.ipynb` uses the adjacent `crazyflie.py`
+helper for takeoff, hover, the step and landing; onboard velocity/attitude loops
+remain active. The flight helper settles at hover and sets the target to the
+measured position before handing over. Check command continuity at that switch
+([bumpless handover](glossary.md#bumpless-handover)). The group's sign, frame,
+mass, power and preflight checks apply before that powered sequence.
+
+Day 2's live/replay tools save the [recording pack](sensor_recording_contract.md)
+used for uncertainty and residual studies. These laptop-filter settings supply
+evidence for Day 3's planning choices; their deployment to a flight controller
+is a separate integration step.
+
+For Day 3, agree a [run card](glossary.md#run-card-and-configuration-freeze): the
+tested race tool's directory, launch command/version, actual controller/estimator,
+command units, limits, operator and stop path. Confirm access on the shared flight
+laptop at R1, along with the race rules and times. The conservative race tool
+streams position targets, so Day 1's velocity-command gains need their own
+interface checks before reuse. There is no expectation to build a new launcher
+during the race practical; keep a tested baseline and shared recordings available.
 
 For the course interface below, the supplied launcher exposes:
 
@@ -42,7 +44,7 @@ python flight_runner.py --config TEAM_COURSE.json --dry-run --plot
 python flight_runner.py --config CHECKED_COURSE.json --fly --log UNIQUE_RUN.csv
 ```
 
-Run those commands in the instructor-provided tool directory/environment, not
+Run those commands in the shared flight-tool directory/environment, not
 the course package. The run card supplies that directory and launcher; if
 using a module launcher it supplies the equivalent command with these arguments.
 The first command does not connect to a radio. The team's pilot uses the second
@@ -53,7 +55,7 @@ The operator exports the assigned URI into the environment variable named by
 `uri_environment_variable`; merely setting a non-exported shell variable is
 insufficient. Only one radio client controls a drone at a time.
 
-**Before R2 acquisition**, try your candidate JSON with the shared dry-run launcher;
+**Before R2 acquisition**, try the example JSON with the shared dry-run launcher;
 teams can help each other check its structure. Fix format mismatches before
 surveying; successful validation does not qualify synthetic or measured geometry.
 If the flight program, limits or run card are missing, continue with simulation

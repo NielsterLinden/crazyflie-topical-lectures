@@ -2,7 +2,7 @@
 
 Optional prompts for the same shared notebook or notes file. Aim for at most
 one page plus links to saved outputs; no separate E1-E7 reports are needed.
-See the [worksheet](../kalman_filter_practical.md#submission-and-closing-discussion)
+See the [notes guidance](../kalman_filter_practical.md#submission-and-closing-discussion)
 and [shared conventions](../practical_workflow.md).
 
 Team and code/settings: _names, revision, saved configuration_

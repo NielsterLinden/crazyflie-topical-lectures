@@ -352,7 +352,7 @@ class ExperimentTests(unittest.TestCase):
                 self.assertIn("R_predicted_22", row)
                 covariance_columns = [name for name in row if name.startswith("R_predicted_")]
                 self.assertEqual(len(covariance_columns), 9)
-                guide = Path(__file__).with_name("README.md").read_text(encoding="utf-8")
+                guide = Path(__file__).with_name("six_state_reference.md").read_text(encoding="utf-8")
                 for name in (covariance_columns[0], covariance_columns[-1]):
                     self.assertIn(f"`{name}`", guide)
                 self.assertIn("measurement_0", row)

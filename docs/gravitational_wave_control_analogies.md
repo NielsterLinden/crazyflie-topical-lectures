@@ -61,7 +61,7 @@ The drone time-domain exercise can be complemented by loop analysis.
 For Day 1, the position loop commands velocity and the next loop commands tilt;
 identify the matching velocity-lag or tilt/drag plant before forming L. The
 acceleration/feed-forward race extension closes a different boundary. The
-[Day 1 guide](day_1_software.md) gives the controller equations and units.
+[optional controller tools](controller_cli_examples.md) give the controller equations and units.
 The plots below are optional loop-analysis extensions:
 
 - identify unity-gain frequency and phase margin;

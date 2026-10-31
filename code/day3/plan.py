@@ -2,12 +2,10 @@
 """Construct and preview an offline course; never connects to a drone."""
 
 import argparse
-import csv
-import json
 from pathlib import Path
 from trajectory_tools.course import construct_course, read_json
-from trajectory_tools.planner import build_trajectory
 from trajectory_tools.preview import plot_trajectory
+from .notebook_tools import checked_plan, plan_course, save_plan
 
 
 def main():
@@ -28,25 +26,14 @@ def main():
                                   args.crossing, args.laps, frame_margin_m=args.frame_margin)
         if args.name:
             course["course_name"] = args.name
-        trajectory = build_trajectory(course)
-        times, positions, velocities, accelerations = trajectory.sample(course["limits"]["setpoint_rate_hz"])
+        plan = plan_course(course, provenance={
+            "source_course": str(args.course),
+            "source_surveys": [str(path) for path in args.gate_survey],
+        })
+        course, trajectory = checked_plan(plan)
         figure = plot_trajectory(course, trajectory)
         args.output.mkdir(parents=True)
-        (args.output / "course.json").write_text(json.dumps(course, indent=2) + "\n", encoding="utf-8")
-        with (args.output / "trajectory.csv").open("w", encoding="utf-8", newline="") as stream:
-            writer = csv.writer(stream)
-            writer.writerow(["time_s", "x_m", "y_m", "z_m", "vx_m_s", "vy_m_s", "vz_m_s", "ax_m_s2", "ay_m_s2", "az_m_s2"])
-            for t, p, v, a in zip(times, positions, velocities, accelerations):
-                writer.writerow([t, *p, *v, *a])
-        summary = {
-            "planned_duration_s": trajectory.duration_s,
-            "speed_bound_m_s": trajectory.speed_bound_m_s,
-            "acceleration_bound_m_s2": trajectory.acceleration_bound_m_s2,
-            "crossings": [{"name": gate["name"], "time_s": time} for gate, time in zip(course["hoops"], trajectory.crossing_times_s)],
-            "source_course": str(args.course), "source_surveys": [str(path) for path in args.gate_survey],
-            "note": "Geometric reference only; no simulated flight, measured finish time or flight approval.",
-        }
-        (args.output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+        save_plan(plan, args.output)
         figure.savefig(args.output / "preview.png", dpi=160)
         print(f"Planned duration {trajectory.duration_s:.2f} s (excludes takeoff/landing); {len(course['hoops'])} crossings")
         print(f"Wrote disabled course, trajectory CSV, summary and preview to {args.output}")

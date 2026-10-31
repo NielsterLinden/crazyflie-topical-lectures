@@ -58,7 +58,9 @@ docker compose up
 
 Open `http://127.0.0.1:8888`. The host `code/` directory remains editable and is
 part of the project folder mounted into the container, alongside `examples/`,
-`docs/` and generated outputs. Open `code/andreas/day1_control.ipynb` for Day 1.
+`docs/` and generated outputs. Open `code/day1/00_jupyter_example.ipynb` for the
+Day 1 software check. The inline simulation notebooks use this environment too;
+keyboard-controlled Qt windows and radio notebooks use the native setup.
 Results written under `day1/`, `E6/` or `plans/` stay in the host project folder
 after the container is stopped or recreated. Select the container's **Python 3
 (ipykernel)** kernel; here `sys.executable` identifies the container's Python

@@ -263,7 +263,8 @@ Proportional-derivative (PD) feedback combines a term proportional to error
 with a derivative term for damping. Proportional-integral-derivative (PID)
 adds accumulated error to address persistent offsets. In the Day 1 position
 controller, the derivative term uses measured velocity. Gains have units set
-by the loop's input and output. See the [controller equations](day_1_software.md#controller-layers-and-units).
+by the loop's input and output. The [Day 1 notebooks](../code/day1/README.md)
+define the controller signs and units used in each experiment.
 
 ## Plant
 

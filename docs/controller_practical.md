@@ -1,28 +1,23 @@
-# Controller practical tasks and deliverables
+# Additional controller comparisons
 
 We start with Andreas's position [PID](glossary.md#pd-and-pid), then try the velocity-to-tilt loop and
 their [cascade](glossary.md#cascade). The same controllers run in simulation, replay and motor-disabled
-checks. The [software guide](day_1_software.md) has commands and units;
+checks. The [optional controller tools](controller_cli_examples.md) have commands and units;
 the [shared conventions](practical_workflow.md) help us compare results.
 
 Optional background: Brian Douglas's [What Is PID Control? (Understanding PID
 Control, Part 1)](https://www.youtube.com/watch?v=wkfEZmsQqiA), with the
 [accompanying playlist](https://www.youtube.com/playlist?list=PLn8PRpmsu08pQBgjxYFXSsODEF3Jqmm-y).
 
-## Scope and schedule
+## Scope and suggested time
 
-For the scheduled practical, work through C1-C7 and the first-hover checks,
-using the software guide and notebook for commands and model details. Items
-labelled **Optional** and the **Stretch exercises** section offer further
-exploration if time remains. The full dynamics derivation, detector analogies
-and external videos are background references; preflight and handling checks
-apply to every hardware session.
-
-Allow 170 minutes for C1-C7, plus a protected 45-minute first-hover session,
-10 minutes for catch-up/preflight, lectures, breaks and discussion; see the
-[timetable](day_1_control.md#schedule). Recordings can replace live acquisition,
-but we still note unperformed hardware checks. Simulation does not qualify a
-drone to fly.
+For the scheduled practical, follow the [Day 1 notebooks](../code/day1/README.md).
+C1-C7 below offer optional single-axis comparisons with the CLI tools and
+`andreas/day1_control.ipynb`. Choose a comparison that helps answer a question
+from the notebook experiments; these are not another sequence to complete.
+The suggested times total 170 minutes if exploring the full collection later.
+Preflight and handling checks apply to every hardware session. Recordings can
+replace live acquisition; label any hardware checks that remain unperformed.
 
 Keep one shared team notebook or notes file, at most one page for today, with
 links to saved outputs. The deliverables below are things to show or discuss,
@@ -46,7 +41,7 @@ from the repository/package root (single-line Python commands work in Bash and P
 ```text
 cd code
 python -m unittest andreas.test_practical
-python -m day1 --output ../day1/baseline --no-show
+python -m andreas.practical --output ../day1/baseline --no-show
 cd ..
 jupyter lab
 ```
@@ -61,9 +56,9 @@ separate calibration and qualification.
 
 Use the [cfclient baseline-check guide](day_1_baseline_checks.md) alongside C1/C2:
 B1/B2 support model/mass checks; B3/B4/B6 support state/frame/timing/limits evidence.
-B5 hover belongs to the [scheduled 15:45 first-hover session](day_1_control.md#first-hover-1545-1630),
-using cfclient and the qualified onboard controller, not participant code. Baseline verification
-precedes optimization; it is not a gain-tuning session.
+B5 describes the cfclient baseline-hover alternative in the
+[flight session](day_1_control.md#flight-session). Baseline verification precedes
+optimization; it is not a gain-tuning session.
 
 ## C1: identify the plant and controller layers
 
@@ -231,7 +226,7 @@ certified hardware stability margin.
 ## C7: sign checks, replay and handover
 
 **Task.** Follow Andreas's motor-disabled stage using the supplied capture/replay
-commands in the [software guide](day_1_software.md#replay-and-motor-disabled-sign-checks).
+commands in the [optional controller tools](controller_cli_examples.md#replay-and-motor-disabled-sign-checks).
 Before a hand capture, place the drone down, set/check **Parameters > stabilizer > stop = 1**
 in cfclient, then disconnect and close cfclient without rebooting. Keep clear of
 propellers. After hand checks, power-cycle on the surface and repeat preflight
@@ -257,9 +252,9 @@ displace the scheduled first hover.
    estimator frame and the [mass/preflight record](practical_workflow.md#hardware-preflight-mass-and-controller-assumptions).
    The core C7 result is the recorded-data sign/frame comparison and handover notes.
 
-That optional participant-controller experiment is distinct from the scheduled
-first hover, which uses cfclient and the unchanged qualified onboard controller.
-It needs separate time and qualification; it does not replace the hover session.
+For the scheduled position-loop flight, use the tested sequence and command
+interface in `drone_03_position_loop.ipynb`. Applying the CLI controllers above
+needs separate interface checks; their gain conventions differ.
 
 **Deliverable.** Saved replay outputs and sign/frame checks. Note your baseline
 and candidate, active interface and what Days 2-3 still need. Keep any flight
@@ -298,12 +293,12 @@ practical work or in parallel groups.
 
 | Extension | Task and additional evidence |
 | --- | --- |
-| Moving reference and feed-forward | Use `day1.feedforward` to compare P/PD/reference-acceleration feed-forward under matched limits. Derive its acceleration-command plant, gain units and `a_ref + Kp*e_p + Kv*e_v` before comparing with the Day 1 velocity interface. Separate startup, the 7-10 s disturbance, and recovery; nominal RMS includes startup. |
+| Moving reference and feed-forward | Explore `code/day1/extra_2Dsim_03_trajectories.ipynb`. Compare waypoint steps with smooth references and feed-forward under matched limits. Derive the acceleration command and gain units before comparing with the velocity-command interface; inspect startup and tracking separately. |
 | System identification | Fit tilt/acceleration and lag/drag models to data with matching units, frames and recorded calibration. Check the near-level 5.84 deg per m/s2 scale, frame signs, differentiation/smoothing and held-out fit uncertainty. See the software guide; this is additional work, not part of the 25-minute C4 core. |
 | Loop analysis | Derive the appropriate velocity/tilt plant, Bode response and margins, then compare sampling/lag and nonlinear limiting effects. |
 | Estimated-state control | Replace ideal state inputs with the Day 2 estimate; compare bias, noise/dropout, estimator lag and actual closed-loop truth. This needs an explicit coupled harness; fixed replay is not a controller-performance test. |
 | [LQR/LQG](glossary.md#lqr-and-lqg) or [MPC](glossary.md#mpc) | Define model, cost units and command interface; compare effort, constraints, timing and failure rates against the simpler controller without equating Kalman Q/R with controller costs. |
 
 These extensions bridge to continuous racing trajectories. They are additional
-work alongside the scheduled C1-C7 exercises. The
+work beyond the scheduled notebooks. The
 [race freeze/fallback plan](day_3_race.md#freeze-points-and-fallback) still applies.
