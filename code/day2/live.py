@@ -15,22 +15,21 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 from kalman.filter import FilterConfig
-from kalman.recording import ACCELERATION_COLUMNS, POSITION_COLUMNS, ReplayFilter
+from kalman.recording import ACCELERATION_COLUMNS, POSITION_COLUMNS, MAX_GAP_S, ReplayFilter
 from .replay import save_results
-from race_common.motor_stop import engage_motor_stop
 
 
 GRAVITY = 9.80665
 PERIOD_MS = 50
 REORDER_S = 0.15
 MAX_AGE_S = 0.15
-MAX_GAP_S = 0.30
 CHANNELS = {
     "motors": [f"motor.m{index}" for index in range(1, 5)],
     "attitude": [f"stateEstimate.q{axis}" for axis in "xyzw"],
     "imu_position": [f"acc.{axis}" for axis in "xyz"] + [f"stateEstimate.{axis}" for axis in "xyz"],
+    "velocity": [f"stateEstimate.v{axis}" for axis in "xyz"],
 }
-PRIORITY = {"motors": 0, "attitude": 1, "imu_position": 2}
+PRIORITY = {"motors": 0, "attitude": 1, "imu_position": 2, "velocity": 3}
 
 
 def world_acceleration(acceleration_g, quaternion_xyzw):
@@ -49,7 +48,8 @@ class SampleAssembler:
 
     Log timestamps are 24-bit firmware milliseconds, not exact sensor times.
     Attitude and motor snapshots are never taken from the future or reused as
-    position updates. Position and acceleration share one 24-byte log packet.
+    position updates.     Position and acceleration share one 24-byte log packet. Onboard velocity
+    is logged separately and journaled, but is not an input to the replay filter.
     """
 
     def __init__(self, acceleration_bias_g=(0, 0, 0)):
@@ -92,6 +92,8 @@ class SampleAssembler:
                 raise ValueError("invalid onboard quaternion")
             self.attitude = (timestamp_ms, values)
             return None
+        if stream == "velocity":
+            return None
         dependencies = [self.motors, self.attitude[0] if self.attitude is not None else None]
         if any(stamp is None for stamp in dependencies):
             self.skipped += 1
@@ -106,7 +108,7 @@ class SampleAssembler:
             if gap <= 0:
                 self.skipped += 1
                 return None
-            if gap > MAX_GAP_S:
+            if gap > MAX_GAP_S + 1e-9:
                 raise ValueError("telemetry gap too long for held-input propagation; use the saved recording or fallback")
         acceleration = world_acceleration(values[:3] - self.bias, self.attitude[1])
         if self.origin_ms is None:
@@ -150,6 +152,7 @@ class LiveSession:
         self.write_metadata()
 
     def write_metadata(self):
+        self.metadata["time_origin_firmware_ms"] = self.assembler.origin_ms
         self.metadata["skipped_events"] = self.assembler.skipped
         self.metadata["prepared_samples"] = len(self.results[0])
         (self.output / "recording.json").write_text(json.dumps(self.metadata, indent=2) + "\n", encoding="utf-8")
@@ -209,26 +212,23 @@ def draw_comparison(figure, results, window_s=None):
             axes[index, 0].plot(times, position, color=color, label=label)
             axes[index, 0].fill_between(times, position - 1.96 * sigma, position + 1.96 * sigma, color=color, alpha=.15)
             axes[index, 1].plot(times, [row[f"v{axis}_m_s"] for row in rows], color=color)
-            axes[index, 2].plot(times, [row[f"innovation_{axis}_m"] for row in rows], color=color)
+            axes[index, 2].plot(times, [row[f"predicted_residual_{axis}_m"] for row in rows], color=color)
             if label == "baseline":
                 axes[index, 0].plot(times, [row[f"measurement_{axis}_m"] for row in rows], ".", color="0.4", label="onboard position")
     for index, axis in enumerate("xyz"):
-        for column, quantity in enumerate(("position [m]", "velocity [m/s]", "innovation [m]")):
+        for column, quantity in enumerate(("position [m]", "velocity [m/s]", "predicted residual [m]")):
             axes[index, column].set_ylabel(f"{axis} {quantity}")
             axes[index, column].grid(True)
     for axis in axes[-1]:
         axis.set_xlabel("Firmware log time since first sample [s]")
     axes[0, 0].legend(fontsize="small")
-    figure.suptitle("Live cascaded estimates - shaded bands are model uncertainty, not validated accuracy")
+    figure.suptitle("Live cascaded estimates - bands show estimated position/velocity uncertainty, not validated accuracy")
     figure.tight_layout()
 
 
 def collect(session, uri, duration_s, no_show):
     # Radio dependencies are deliberately absent from offline imports and --help.
-    import cflib.crtp
-    from cflib.crazyflie import Crazyflie
-    from cflib.crazyflie.log import LogConfig
-    from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
+    from .notebook_tools import add_log_config, log_channel_elements, motor_stopped_connection
     import matplotlib.pyplot as plt
 
     events = queue.Queue(maxsize=5000)
@@ -242,19 +242,15 @@ def collect(session, uri, duration_s, no_show):
                 errors.put("telemetry queue overflow; stop and use the recording fallback")
         return receive
 
-    cflib.crtp.init_drivers()
     print(f"Connecting to {uri}; engaging firmware stop before hand-held recording", flush=True)
-    with SyncCrazyflie(uri, cf=Crazyflie()) as connection:
-        cf = connection.cf
-        connection.wait_for_params()
-        session.metadata["motor_stop_check"] = engage_motor_stop(cf)
+    with motor_stopped_connection(
+        uri, session.output / ".cflib-cache"
+    ) as (cf, motor_stop_check):
+        session.metadata["motor_stop_check"] = motor_stop_check
         session.write_metadata()
         print("STOP VERIFIED: firmware locked, four motor outputs zero. "
               "Hand-held recording may begin; keep clear of propellers.", flush=True)
-        missing = [name for names in CHANNELS.values() for name in names
-                   if cf.log.toc.get_element_by_complete_name(name) is None]
-        if missing:
-            raise ValueError("firmware lacks required log channels: " + ", ".join(missing))
+        log_channel_elements(cf, [name for names in CHANNELS.values() for name in names])
         cf.connection_lost.add_callback(lambda _uri, message: errors.put("connection lost: " + message))
         configs = []
         figure = None
@@ -267,13 +263,11 @@ def collect(session, uri, duration_s, no_show):
         last_status = started - 5
         try:
             for stream, names in CHANNELS.items():
-                config = LogConfig(name="E6_" + stream, period_in_ms=PERIOD_MS)
-                for name in names:
-                    config.add_variable(name, "float")
-                cf.log.add_config(config)
+                config = add_log_config(
+                    cf, "E6_" + stream, names, PERIOD_MS, callback(stream),
+                    lambda _config, message: errors.put("logging error: " + message),
+                )
                 configs.append(config)
-                config.data_received_cb.add_callback(callback(stream))
-                config.error_cb.add_callback(lambda _config, message: errors.put("logging error: " + message))
                 config.start()
             while True:
                 now = time.monotonic()

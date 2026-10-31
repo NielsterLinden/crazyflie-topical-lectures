@@ -1,74 +1,69 @@
-# Day 2: estimation experiments
+# Day 2: timestamped sensor fusion
 
-This package runs the Day 2 experiments: live capture, replay, plots and
-the two small participant decisions. The reusable filter lives in
-[kalman](../kalman/README.md); gate geometry and race policies live in
-[race_common](../race_common/README.md). Start with the
-[E1-E7 worksheet](../../docs/kalman_filter_practical.md).
+Open [day2_kalman.ipynb](day2_kalman.ipynb) in the native Jupyter environment. The [worksheet](../../docs/kalman_filter_practical.md) gives the model, timing, handling steps and completion checks. E3-E7 estimate height and vertical velocity from accelerometer and downward ToF readings, with a matching simulated fallback.
 
-## Guided notebook
+- `vertical.py`: timestamp validation, stationary calibration, two-state prediction/update checks, replay and saved comparisons.
+- `vertical_live.py`: bounded capture of `acc.x/y/z` and `range.zrange`; verifies and monitors firmware motor stop, leaves it engaged.
+- `notebook_tools.capture_vertical()`: runs capture in a bounded child process and relays progress into Jupyter.
+- `test_vertical.py`: mathematical, timing, recording, fault, held-out-data and acquisition checks.
 
-Open [day2_kalman.ipynb](day2_kalman.ipynb) in Jupyter, using the same
-**Crazyflie lectures (.venv)** kernel as Day 1. From the project root:
+Participants fill four mathematical expressions in the notebook. Helpers preserve timestamps, diagnostics and input hashes. The filter consumes no onboard position, velocity or quaternion estimate. Level vertical motion over a fixed floor is an explicit measurement-model assumption.
+
+From `code/`, run:
 
 ```text
-jupyter lab
+python -m unittest day2.test_vertical
+python -m day2.vertical_live --output ../data/vertical-training --prepare-for-handling
 ```
 
-The notebook covers E1-E7: prediction and update, sensor calibration, Q/R choices,
-outlier rejection, stationary updates and analysis of recorded data.
-An optional cell runs the existing motor-free logger for 60 seconds, with a
-90-second overall timeout including connection and saving. First follow the
-[hand-held recording preparation](../../docs/sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording):
-place the drone down, close radio clients, and select the assigned URI. The logger
-sets `stabilizer.stop=1`, verifies the locked state and zero motor outputs, and
-prints **STOP VERIFIED** before you pick up the drone. Keep clear of fitted
-propellers. The stop stays engaged afterwards; power-cycle on the surface and
-repeat preflight checks before flight. The cell
-shows the saved comparison and selects the successful capture for later cells.
-Open `code/day2/day2_kalman.ipynb` from Jupyter's file browser. Keeping the project
-root visible also makes its worksheet and safety-guide links accessible.
-Use a fresh capture name on a repeat. Failed or interrupted captures preserve
-partial files and require an explicit fallback choice.
-Saved recordings and the default offline simulation remain available. Choose a fresh
-`run_id` for a new full session and rerun setup. Within a session, edit and rerun
-E3-E6 cells directly: each creates a numbered folder such as `E4/attempt-002/`,
-preserving earlier results and the selected recording. Save the edited notebook.
-It covers the same exercises and time slots as the command-line route below;
-use either route rather than doing both.
+For capture, set the assigned `CF_URI` or add `--uri`, put the drone down and close other radio clients. Wait for STOP VERIFIED, then the five-second calibration check, before gentle hand motion. Capture lasts 20 seconds with a bounded connection allowance; the notebook's overall bound is 50 seconds. Use a distinct directory. See the worksheet before handling.
 
-Activate the environment using the [installation guide](../../docs/software_setup.md#activate-and-check).
-From the package root:
+`raw.csv` has columns `time_s,acc_x_g,acc_y_g,acc_z_g,range_mm`; `recording.json` declares source, status, units/conventions, channels and the raw SHA-256. Invalid selections stop rather than falling back silently. Set a recording directory to `None` explicitly for simulation. UTF-8 BOM files are accepted.
+
+Each notebook experiment creates a new directory with `comparison.png`, per-run timestamped CSVs and `settings.json`. CSV fields include height/velocity, C_zz/C_zv/C_vv, the predicted residual and its variance, chi-square, prospective range gain, acceptance and stationary-update flag. Settings retain calibration, input identity and model assumptions. E6 uses frozen training calibration/Q/V on different input. E7 takes vertical variance from actual filter runs and labels assumed horizontal uncertainty.
+
+E2C includes an explicit `use_simulated_imu` fallback: independent stationary calibration/validation CSVs are created in `E2-simulated/` under the run folder and labelled as simulation. The actual drone's calibration remains outstanding. E5 reuses the team's E3 prediction and range-update functions, with the velocity-constraint update supplied. E6's simulated fallback matches the frozen stationary correction and declared noise settings; it checks the implementation rather than experimentally validating the sensor model.
+
+## E1: track following
+
+The notebook first shows how position measurements correct velocity through
+cross-covariance. E1 then applies the same idea to a ten-plane position/slope fit
+and a 1,000-track pull study. Try your own implementation, using an AI tool if useful, then compare
+with the supplied reference. From `code/`:
 
 ```text
-cd code
+python -m day2.tracking --tracks 1000 --seed 7 --output ../day2/tracking/trial-01
+python -m unittest day2.test_tracking
+```
+
+The [E1 prompt](../../docs/kalman_filter_practical.md#e1-follow-a-particle-track)
+defines scattering order, initialization and detector acceptance. Outputs include
+final fits/covariances, pull statistics, histograms and a track with prediction
+bands. Use a fresh output directory. E1 retains its 25-minute slot; the optional
+illustration challenge closes at noon.
+
+## Additional six-state experiments
+
+The tools below support optional asynchronous-sensor, sensor-selection and cascaded-estimation studies. Their observations, formats and command-line settings are described separately from the vertical experiment. Onboard state estimates can share IMU information with the laptop filter; agreement between those estimates is not independent accuracy evidence.
+
+
+The shared six-state filter lives in [kalman](../kalman/README.md).
+The optional tools below add asynchronous position, flow and range observations,
+matched fault scenarios, automatic stationary decisions and per-sensor diagnostics.
+They use their own prepared-data format. For the scheduled vertical experiment,
+follow the notebook and sections above.
+
+From the project root, run `jupyter lab` and open the notebook in the file browser.
+The optional six-state simulation and tests can be run from `code/`:
+
+```text
 python -m day2.simulate
 python -m unittest kalman.test_filter day2.test_experiments day2.test_replay day2.test_live
 ```
 
-The baseline shows motion, estimation error, model uncertainty and a mixed-sensor
-NIS anomaly locator. It includes a position dropout at 7-10 s and a position
-outlier at 12 s. E3 supplies full per-sensor diagnostics. Truth follows prescribed
-motion; changing the estimate does not change the simulated flight.
+### Six-state experiment runner
 
-Before tuning, use the [sensor calibration exercise](../../docs/sensor_bias_calibration_exercise.md).
-Calibration addresses offsets and scale; Q/R express uncertainty. Preserve
-raw/derived labels and validate a correction or a decision to retain the existing
-calibration on separate data.
-
-For the model and interpretation, see the [equations of motion](../../docs/quadrotor_equations_of_motion.md),
-[glossary](../../docs/glossary.md), [detector-system bridge](../../docs/detector_system_analogies.md)
-and [collider-tracking analogies](../../docs/collider_tracking_kalman_analogies.md).
-The process input is gravity-excluded world acceleration; position and velocity
-form the six-state estimate. Day 1's velocity/tilt controllers use different
-interfaces and gain units.
-
-## E3-E5 experiment runner
-
-Prefer a short motor-free live capture where the required channels are supported;
-the [worksheet](../../docs/kalman_filter_practical.md#live-first-with-a-quick-fallback)
-has the capture command, safety checks and five-minute fallback rule.
-Reuse `live.py`'s `prepared.csv` and `recording.json`, for example from `code/`:
+For an optional cascaded comparison, reuse `live.py`'s `prepared.csv` and `recording.json`, for example from `code/`:
 
 ```text
 python -m day2.experiments --study covariance --recording ../data/team-live/prepared.csv --metadata ../data/team-live/recording.json --output ../E3/recorded
@@ -86,6 +81,10 @@ If the recording begins without position observations, analysis starts at the
 first available position. Earlier rows are omitted, with their count and the
 initialization time saved in metadata; timestamps retain the original time origin.
 A recording with no position observations cannot anchor this comparison.
+Injected faults use elapsed time from the first file sample, while plots and
+saved events keep the recorded clock. Thus a recording starting at 100 s has
+the 7-10 s position dropout at timestamps 107-110 s and its outlier at/after 112 s.
+The same 0.30 s sample-gap limit also applies to six-state replay.
 
 Per-case recordings are saved under `CASE/recording/`. Figures show observations
 and estimates with model bands, not errors against truth. RMSE/coverage fields
@@ -101,14 +100,11 @@ it also supports full sensor ablations, stationarity, and truth-based coverage.
 From `code/` with the environment activated:
 
 ```text
-python -m day2.experiments --study covariance --output ../E3/R-comparison
+python -m day2.experiments --study covariance --output ../E3/V-comparison
 python -m unittest day2.test_experiments
 ```
 
-The [E3-E5 worksheet](../../docs/kalman_filter_practical.md#e3-tune-uncertainty-not-just-smoothness)
-provides the other commands and time budgets. The runner handles sensor
-scheduling, matched noise draws, fault scenarios, diagnostics, plotting and
-metrics. Participants choose Q/R, implement `innovation_threshold()` and
+The runner saves matched sensor streams, scenarios, diagnostics and metrics. Choose Q/V, implement `predicted_residual_threshold()` and
 `stationary_update_allowed()` in `exercise_policies.py`, then explain the results.
 The notebook passes its decision functions directly to the same experiment code.
 For command-line work, put them in `exercise_policies.py`. Both starters
@@ -123,11 +119,13 @@ Each **new** output directory contains:
 - `comparison.png`: every run's XYZ position/velocity errors and model 95% bands.
   Each changed `CASE/comparison.png` also shows that case against baseline alone.
 - `CASE/seed-NNN/states.csv`: truth, estimates, marginal uncertainties and IMU input.
-- `CASE/seed-NNN/updates.csv`: each measurement, predicted measurement, innovation,
-  full S, whitened innovation, NIS, threshold and acceptance, captured before the
+- `CASE/seed-NNN/updates.csv`: each measurement, predicted measurement, predicted residual,
+  full predicted residual covariance R, whitened predicted residual, chi-square, threshold and acceptance, captured before the
   next sensor update overwrites the filter diagnostics. Components 0/1/2 refer
   to XYZ for position/ZUPT, XY for flow and Z for scalar range; unused fields are blank.
-- `diagnostics.png` in the first seed's per-case directory: all pre-gate NIS,
+  Columns `predicted_residual_0` to `_2` contain the residual vector;
+  `R_predicted_00` to `R_predicted_22` contain its covariance matrix.
+- `diagnostics.png` in the first seed's per-case directory: all pre-gate chi-square,
   pull histograms and correlations, including rejected updates. Lags count
   regularly spaced sensor updates, skipping gaps. These plots combine all
   intervals; `summary.json` separates startup, nominal, dropout/fault or rest/motion.
@@ -162,7 +160,7 @@ those updates as independent evidence. These are estimation experiments,
 not a closed-loop flight simulation or a hardware stationary detector.
 
 `--export-prepared` additionally writes a declared synthetic `prepared.csv` and
-`recording.json` for the first case/seed, usable by the E6 replay helper. This
+`recording.json` for the first case/seed, usable by the six-state replay helper. This
 provides prepared simulated data when a checked real recording is unavailable.
 The metadata identifies them as synthetic; hardware calibration and validation
 still need real measurements.
@@ -171,25 +169,28 @@ still need real measurements.
 
 | Location | Responsibility |
 | --- | --- |
-| `experiments.py` | E3-E5 recipes, complete diagnostics and saved comparisons. |
+| `experiments.py` | Optional six-state recipes, complete diagnostics and saved comparisons. |
 | `experiment_data.py` | Matched sensor streams, recorded inputs and isolated faults. |
-| `exercise_policies.py` | Participant-owned E4 threshold and E5 stationary decision. |
+| `exercise_policies.py` | Threshold and stationary decisions for six-state studies. |
 | `live.py`, `replay.py` | Safe motor-free acquisition and offline figures/commands. |
-| `simulate.py` | E1 baseline display, using the shared simulation. |
+| `simulate.py` | Optional six-state baseline display, using the shared simulation. |
 | `../kalman/filter.py` | Prediction and updates; optional bias-state/adaptive-Q work. |
 | `../kalman/pipeline.py` | Sensor callbacks, including the optional adapter extension. |
 | `../kalman/recording.py` | Prepared-file validation and incremental filtering. |
 | `../race_common/strategy.py` | E7 clearance/braking-aware policy study. |
 
-Run `python -m day3.uncertainty` from `code/` for E7's gate-clearance example.
+Run `python -m day3.uncertainty` from `code/` for an additional six-state gate-clearance example.
 It uses the same estimation baseline, with gate geometry and speed decisions
 added in the Day 3 front end. The recommended speed does not change prescribed
 truth motion, so it cannot establish lap-time improvements.
 
-For E6, use `python -m day2.live` with the assigned URI, `--prepare-for-handling`
+For an additional cascaded-estimation study, use `python -m day2.live` with the assigned URI, `--prepare-for-handling`
 and a new output directory, or `python -m day2.replay` with prepared input and
-metadata. The [worksheet](../../docs/kalman_filter_practical.md#e6-compare-filters-on-live-drone-data)
-provides full commands, fallback paths and a time budget. Neither commands motors.
+metadata. The [six-state recording guide](../../docs/sensor_recording_contract.md#live-six-state-session-and-replay-fallback)
+provides commands and prepared-data examples. Neither commands motors.
+Their diagnostic CSVs store position predicted residuals in
+`predicted_residual_x_m`, `predicted_residual_y_m` and `predicted_residual_z_m`,
+with blank fields when no position observation arrives.
 Fused-position replay is cascaded estimation with shared-IMU correlations.
 
 [Race profiles and integration](../race_common/README.md#fallback-profiles)

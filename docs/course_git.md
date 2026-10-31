@@ -87,7 +87,7 @@ Review `git status` and commit specific files you changed, for example:
 
 ```text
 git add code/day2/exercise_policies.py
-git commit -m "Test our innovation threshold"
+git commit -m "Test our predicted residual threshold"
 ```
 
 The supplied ignore rules keep local environments, radio settings and common

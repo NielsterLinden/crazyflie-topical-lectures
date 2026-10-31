@@ -5,8 +5,8 @@ as process input. This package handles numerical prediction, updates and prepare
 recording validation. Day-specific commands, plots and participant decisions live
 in [day2](../day2/README.md).
 
-- `filter.py`: `FilterConfig`, `PositionVelocityKalmanFilter`, Q/R/P, innovations,
-  NIS, rejection and Joseph-form covariance updates.
+- `filter.py`: `FilterConfig`, `PositionVelocityKalmanFilter`, Q/V/C, predicted residuals,
+  chi-square, rejection and Joseph-form covariance updates.
 - `pipeline.py`: IMU/position/flow/range/stationary callback interface.
 - `recording.py`: prepared CSV/metadata validation, `ReplayFilter` and replay.
 - `simulation.py`: reproducible baseline sensor/filter computation, without

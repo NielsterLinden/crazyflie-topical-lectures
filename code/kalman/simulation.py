@@ -27,13 +27,13 @@ def run(seed: int = 7, scenario: str = "combined") -> dict[str, np.ndarray]:
         "position_std": [],
         "position_covariance": [],
         "position_measurement": [],
-        "nis": [],
+        "chi2": [],
     }
 
     dt = 0.02
     for sample in range(int(18.0 / dt) + 1):
         timestamp_s = sample * dt
-        sample_nis = []
+        sample_chi2 = []
         reference = reference_state(timestamp_s)
         true_position = reference.position
         true_velocity = reference.velocity
@@ -52,15 +52,15 @@ def run(seed: int = 7, scenario: str = "combined") -> dict[str, np.ndarray]:
             if not dropout:
                 position_measurement = observation
                 pipeline.on_position(position_measurement)
-                sample_nis.append(estimator.last_nis)
+                sample_chi2.append(estimator.last_chi2)
 
         # Simulated 25 Hz horizontal optical-flow velocity and 10 Hz range.
         if sample % 2 == 0:
             pipeline.on_flow_velocity(true_velocity[:2] + random.normal(0.0, 0.08, 2))
-            sample_nis.append(estimator.last_nis)
+            sample_chi2.append(estimator.last_chi2)
         if sample % 5 == 0:
             pipeline.on_range(float(true_position[2] + random.normal(0.0, 0.03)))
-            sample_nis.append(estimator.last_nis)
+            sample_chi2.append(estimator.last_chi2)
 
         records["time"].append(timestamp_s)
         records["truth"].append(true_position)
@@ -68,6 +68,6 @@ def run(seed: int = 7, scenario: str = "combined") -> dict[str, np.ndarray]:
         records["position_std"].append(np.sqrt(np.diag(estimator.position_covariance)))
         records["position_covariance"].append(estimator.position_covariance)
         records["position_measurement"].append(position_measurement)
-        records["nis"].append(max(sample_nis) if sample_nis else np.nan)
+        records["chi2"].append(max(sample_chi2) if sample_chi2 else np.nan)
 
     return {key: np.asarray(value) for key, value in records.items()}

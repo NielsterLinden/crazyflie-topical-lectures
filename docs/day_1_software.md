@@ -201,14 +201,11 @@ roll/pitch, with yaw and unit conventions checked against the installed firmware
 Never paste degree tilt commands into an acceleration API. Preserve the qualified
 onboard estimator; changing its origin invalidates surveyed room coordinates.
 
-Day 2 explores state estimation, sensor bias, noise, innovation consistency and
-dropout. In E6, the supplied helper compares two filters on live drone data
-during slow hand motion, after its automatic firmware-stop verification prints
-**STOP VERIFIED**. It records acceleration, onboard
-orientation and position, and motor status as described in the
-[sensor recording guide](sensor_recording_contract.md#live-e6-session-and-replay-fallback).
-Saved data support repeatable analysis; a prepared recording provides the fallback
-if live acquisition is unavailable. Day 3 carries forward
+Day 2 explores state estimation using sensor-level acceleration and downward
+ToF range during gentle, level vertical motion. Its helper verifies the firmware
+stop before handling. E3-E5 reuse one capture; E6 checks frozen settings on a
+separate recording. The [recording guide](sensor_recording_contract.md#vertical-sensor-recordings-for-e3-e7)
+explains the fixed-floor geometry and simulated fallback. Day 3 carries forward
 response lag, limits, frames, noise sensitivity and qualification evidence. A
 continuous trajectory may need reference velocity/acceleration feed-forward and
 a different command layer; the acceleration-command example demonstrates that extension.

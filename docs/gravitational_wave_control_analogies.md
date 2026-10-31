@@ -193,7 +193,7 @@ applied control. Reconstruction may require both:
 \]
 
 For the drone, record estimated state, reference, residual, control command,
-saturation, and estimator innovations. For an interferometer, equivalent error
+saturation, and estimator predicted residuals. For an interferometer, equivalent error
 and control channels are essential for calibration and diagnosing control-noise
 couplings. A small in-loop error signal alone can be misleading because the loop
 may suppress it or because the sensor noise is being followed.

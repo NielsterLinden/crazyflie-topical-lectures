@@ -1,10 +1,12 @@
 """Radio-free tests for the live E6 adapter and saved replay equivalence."""
 
 import ast
+import csv
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -12,6 +14,7 @@ from scipy.spatial.transform import Rotation
 from kalman.filter import FilterConfig
 from .live import CHANNELS, GRAVITY, LiveSession, SampleAssembler, draw_comparison, main, world_acceleration
 from kalman.recording import ReplayFilter, load_recording, replay
+from .notebook_tools import load_capture_overview, plot_capture_overview
 
 
 def packet(stream, values):
@@ -24,6 +27,7 @@ class LiveTests(unittest.TestCase):
         self.motors = packet("motors", [0] * 4)
         self.attitude = packet("attitude", [0, 0, 0, 1])
         self.observation = packet("imu_position", [0, 0, 1, .1, .2, .3])
+        self.velocity = packet("velocity", [.4, -.2, .1])
 
     def prepare(self, timestamp=100):
         self.assembler.accept("motors", timestamp, self.motors)
@@ -76,6 +80,59 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(self.assembler.unwrap(modulus - 10), modulus - 10)
         self.assertEqual(self.assembler.unwrap(80), modulus + 80)
 
+    def test_overview_uses_prepared_origin_with_startup_offsets_and_rollover(self):
+        modulus = 1 << 24
+        for include_velocity in (False, True):
+            with self.subTest(velocity=include_velocity), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "capture"
+                session = LiveSession(output, [FilterConfig()] * 2, [0, 0, 0], "test://offline")
+                # The first IMU packet cannot be paired: attitude/motors arrive later.
+                packets = [(modulus - 50, "imu_position", self.observation),
+                           (modulus - 20, "motors", self.motors),
+                           (modulus - 10, "attitude", self.attitude),
+                           (0, "imu_position", self.observation),
+                           (50, "imu_position", self.observation)]
+                if include_velocity:
+                    packets.append((10, "velocity", self.velocity))
+                for index, (timestamp, stream, values) in enumerate(packets):
+                    session.enqueue(stream, timestamp, values, index * .001)
+                session.drain(1., force=True)
+                with patch("day2.live.save_results"):
+                    session.finish("complete")
+                self.assertEqual(session.metadata["time_origin_firmware_ms"], modulus)
+                overview = load_capture_overview(output)
+                np.testing.assert_allclose(overview["prepared_time_s"], [0, .05])
+                np.testing.assert_allclose(overview["imu_position"][0], [-.05, 0, .05])
+                np.testing.assert_allclose(overview["attitude"][0], [-.01])
+                np.testing.assert_allclose(overview["velocity"][0], [.01] if include_velocity else [])
+                np.testing.assert_allclose(overview["world_acceleration"], 0.)
+                image = plot_capture_overview(overview, Path(directory) / "overview.png")
+                self.assertGreater(image.stat().st_size, 1000)
+                # Captures predating the explicit origin field use verified causal pairing.
+                metadata = dict(session.metadata)
+                del metadata["time_origin_firmware_ms"]
+                (output / "recording.json").write_text(json.dumps(metadata))
+                recovered = load_capture_overview(output)
+                np.testing.assert_array_equal(recovered["imu_position"][0], overview["imu_position"][0])
+                with (output / "raw.csv").open("a") as stream:
+                    stream.write("tampered")
+                with self.assertRaisesRegex(ValueError, "Capture file changed"):
+                    load_capture_overview(output)
+
+    def test_overview_rejects_incomplete_capture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "capture"
+            session = LiveSession(output, [FilterConfig()] * 2, [0, 0, 0], "test://offline")
+            for timestamp in (100, 150):
+                for stream, values in (("motors", self.motors), ("attitude", self.attitude),
+                                       ("imu_position", self.observation)):
+                    session.enqueue(stream, timestamp, values, timestamp / 1000)
+            session.drain(1., force=True)
+            with patch("day2.live.save_results"):
+                session.finish("interrupted")
+            with self.assertRaisesRegex(ValueError, "complete capture"):
+                load_capture_overview(output)
+
     def test_incremental_filter_matches_offline_replay(self):
         samples = [(0, np.zeros(3), np.array([.1, .2, .3])),
                    (.05, np.array([.1, 0, 0]), np.array([.2, .2, .3]))]
@@ -95,6 +152,7 @@ class LiveTests(unittest.TestCase):
                 session.enqueue("imu_position", stamp, self.observation, 0)
                 session.enqueue("attitude", stamp, self.attitude, .01)
                 session.enqueue("motors", stamp, self.motors, .02)
+                session.enqueue("velocity", stamp, self.velocity, .03)
             session.drain(.1)
             self.assertEqual(len(session.results[0]), 0)
             session.drain(.3)
@@ -104,7 +162,14 @@ class LiveTests(unittest.TestCase):
             session.finish("interrupted", "test stop")
             samples, metadata = load_recording(output / "prepared.csv", output / "recording.json")
             self.assertEqual(metadata["status"], "interrupted")
+            self.assertEqual(metadata["channels"]["velocity"],
+                             ["stateEstimate.vx", "stateEstimate.vy", "stateEstimate.vz"])
             self.assertEqual(len(metadata["source_sha256"]["raw.csv"]), 64)
+            with (output / "raw.csv").open(newline="", encoding="utf-8") as stream:
+                raw_rows = list(csv.DictReader(stream))
+            velocity_rows = [row for row in raw_rows if row["stream"] == "velocity"]
+            self.assertEqual(len(velocity_rows), 3)
+            self.assertEqual(json.loads(velocity_rows[0]["values_json"]), self.velocity)
             for actual, config in zip(session.results, configs):
                 self.assertEqual(actual, replay(samples, config))
             import matplotlib.pyplot as plt

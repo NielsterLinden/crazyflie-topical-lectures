@@ -17,8 +17,8 @@ class StationaryWindow:
     flow_speed_m_s: float | None
 
 
-def innovation_threshold(dimension: int, false_rejection_probability: float) -> float | None:
-    """E4: return the NIS threshold for this measurement dimension.
+def predicted_residual_threshold(dimension: int, false_rejection_probability: float) -> float | None:
+    """E4: return the chi-square threshold for this measurement dimension.
 
     Use the worksheet's chi-square rule. Think about the assumptions that make
     that rule applicable. None deliberately leaves the starter ungated.

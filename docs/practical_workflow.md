@@ -83,7 +83,7 @@ this; the supplied simulations retain their own references and interfaces.
 - Separate labels identify raw sensors, onboard estimates, offboard estimates,
   reference commands, simulated truth, and independent observations. An estimator
   output or in-loop residual is not independent ground truth.
-- Innovation records include values before rejection, separated by sensor/update
+- Predicted residual records include values before rejection, separated by sensor/update
   dimension. Accepted-only residuals are selected data; mixed-dimensional maxima
   do not form one chi-square-distributed sample.
 - A lap-time improvement claim needs a model in which the proposed speed policy

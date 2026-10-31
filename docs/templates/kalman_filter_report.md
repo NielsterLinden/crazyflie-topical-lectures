@@ -15,7 +15,7 @@ Reproduce: _working directory, commands, data/calibration IDs and seeds_
 - One failure or surprise: what might explain it, and how could we check?
 - Our race-day recommendation and remaining limitations:
 
-Link the calibration values and held-out check, and the two E6 output sets.
+Link the calibration decision, frozen training settings and E6 fresh-data check.
 Keep units, frames, raw/derived labels and timing assumptions with the data.
 Distinguish independent truth from onboard estimates. Note supplied recordings,
 unperformed work and anything the data cannot determine. The saved output files

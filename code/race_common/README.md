@@ -57,24 +57,20 @@ the laptop to onboard PID; it does not upload a high-level trajectory. Host
 scheduling and link continuity therefore matter, including during best-effort
 landing. The advanced onboard-trajectory option is a separate qualified runner.
 
-For the 30-minute E6 core, use `python -m day2.live` from `code/` with
-the assigned URI, `--prepare-for-handling` and a new `--output` directory. Place
-the drone down, close other radio clients, and wait for **STOP VERIFIED** before
-handling it: the helper sets `stabilizer.stop=1` and verifies the lock and zero
-motor outputs. The stop remains engaged; power-cycle on the surface and repeat
-preflight checks before flight. It compares
-two configurations on the same stream and saves input for exact offline replay.
-Use `python -m day2.replay` with `--metadata` and a fresh output prefix
-as the immediate fallback. The
-[E6 worksheet](../../docs/kalman_filter_practical.md#e6-compare-filters-on-live-drone-data)
-provides complete commands and a time budget. Raw acquisition/conversion and
-asynchronous timing tests are not prerequisites for that slot.
+Day 2's E3-E7 height/velocity experiment uses timestamped acceleration and
+ToF range, with a checked recording or matching simulation as fallback.
+[Sensor recording instructions](../../docs/sensor_recording_contract.md#vertical-sensor-recordings-for-e3-e7)
+cover motor-stop verification, level vertical motion and frozen validation settings.
+It estimates vertical uncertainty; a three-dimensional flight estimator needs
+additional observations and frame/calibration information.
+The optional six-state comparison remains available through `day2.live` and
+`day2.replay`; its position/acceleration format is documented separately.
 
 If live integration is incomplete, use the checked flight fallback
 and evaluate the participant estimator offline on a suitable sensor recording.
 Check the channels, units and timing against that guide; a position-only race log is not an
 inertial sensor dataset. This still permits
-innovation, covariance, controller, and crossing-error analysis.
+predicted residual, covariance, controller, and crossing-error analysis.
 
 ### Time-boxed decision points
 

@@ -2,23 +2,37 @@
 
 ## Purpose
 
-Before tuning the filter, we check its sensors. [Calibration](glossary.md#bias-and-calibration) estimates systematic
-offsets; the measurement covariance R describes the remaining random variation.
+Before tuning the filter, we check its sensors. [Calibration](glossary.md#bias-and-calibration)
+estimates systematic offsets; measurement covariance \(V_k\) describes the
+remaining random variation, following Frühwirth's notation.
 
-For a sensor model
-
-\[
-z_k = h(x_k) + b + v_k,
-\]
-
-estimate the bias from a known reference condition:
+For a measurement model
 
 \[
-\hat b = \frac{1}{N}\sum_{k=1}^{N}\left[z_k-h(x_{\rm ref})\right].
+m_k=h_k(x_k)+b+\epsilon_k,\qquad \operatorname{cov}(\epsilon_k)=V_k,
 \]
 
-After subtracting \(\hat b\), estimate the measurement covariance from the
-remaining residuals. Keep calibration and validation recordings separate.
+\(h_k\) predicts the sensor reading from the state. A range sensor measures
+distance; a gyro measures angular velocity. At a known reference condition,
+estimate a constant additive sensor bias using
+
+\[
+\hat b=\frac{1}{N}\sum_{k=1}^{N}[m_k-h_k(x_{\rm ref})].
+\]
+
+Estimate the remaining covariance from the centered residuals. Their standard
+deviation is the square root of the variance. This estimates sensor noise when
+the reference is stable and its uncertainty is negligible; reference motion or
+uncertainty also contributes to the observed scatter. Keep calibration and
+validation recordings separate.
+
+For a filter prediction, the predicted residual is
+\(r_k^{k-1}=m_k-h_k(x_k^{k-1})\), with covariance
+\(R_k^{k-1}=V_k+H_k C_k^{k-1}H_k^T\), where
+\(H_k=\partial h_k/\partial x\). For a scalar measurement its pull is
+\(r_k^{k-1}/\sqrt{R_k^{k-1}}\). With an unbiased model and correctly specified
+uncertainties, pulls have mean zero and standard deviation one. Vector
+measurements use [whitening](glossary.md#whitening-and-cholesky-factorization).
 
 ## Safety and preparation
 
@@ -44,9 +58,9 @@ logs alone are not the raw-sensor acquisition required here.
 The scheduled exercise is a stationary IMU check and one held-out bias/noise
 comparison. Inventory all installed sensors, but choose the gyro for the
 quantitative comparison. Use accelerometer data to check the stationary gravity
-signal. If position is available in the same session, estimate its stationary
-spread as a starting point for E3; otherwise use the supplied position-noise
-assumption and label it. Full calibration of every sensor is further work.
+signal. E3 separately estimates ToF range spread during its initial stationary
+check. Gyro covariance and range variance describe different observations.
+Full calibration of every sensor is further work.
 
 | Minutes | Activity | Result |
 | --- | --- | --- |
@@ -60,7 +74,11 @@ Prefer measurements from the team's drone. Keep the checked calibration and
 separate validation recordings available before starting, so a troublesome
 connection, missing channel or unexplained timing/frame feature can be left for
 later. If such an issue blocks progress for five minutes, continue the same
-analysis on the supplied recordings. Routine bias/noise estimation is the
+analysis on a checked pair, or set `use_simulated_imu = True` in the notebook's
+E2C input cell. This generates `E2-simulated/calibration.csv` and
+`validation.csv` under the run's output folder, with independent noise and
+simulation labels. Use them for the same analysis and held-out check; calibration
+of the actual drone remains outstanding. Routine bias/noise estimation is the
 exercise itself; a nonzero offset is a result to investigate, not automatically
 a reason to abandon live acquisition. Preserve unexpected data and note which
 source supplied each result. A calibration from another recording does not
@@ -88,12 +106,18 @@ intervals and keep the calibration and validation files separate.
    Compare before/after residual means and spreads. Do not subtract an onboard
    correction a second time. If the held-out result fails, preserve it and record
    the limitation rather than refitting repeatedly during this slot.
+   In the same comparison, inspect the standardized histograms. Calibration
+   samples use their own mean and RMS, so their mean is zero and RMS is one by
+   construction; their shape can still show tails or asymmetry. Held-out samples
+   use those frozen calibration values, so their mean and width test transfer
+   to a separate recording under the same stationary conditions. Explain this
+   distinction for one channel. Shared systematic errors can remain hidden.
 4. If stationary onboard position is available, label it as fused and estimate
    its sample covariance after centring on its calibration-recording mean.
    Check the held-out spread without retuning. This measures short-term variation,
    not absolute Lighthouse bias or accuracy: an absolute correction needs an
    independent surveyed reference. Correlations and shared IMU inputs also limit
-   its interpretation as a measurement-noise R.
+   its interpretation as a measurement-noise V.
 
 For an N-by-3 array of calibration residuals in consistent units, the numerical
 steps are `bias = residuals.mean(axis=0)`,
@@ -114,10 +138,9 @@ enough, and no separate calibration report is needed:
 - A small JSON/CSV containing the tested values, units, frame, data sources and
   the decision to apply or retain each correction. Mark unmeasured parameters
   explicitly; keep onboard and offline corrections separate.
-- The position-noise assumption for E3: an empirical starting value from the
-  available recording, or the declared supplied/default assumption when a suitable
-  position recording is unavailable. Gyro covariance is a sensor diagnostic here;
-  it is not the position R used by the six-state filter.
+- The E3 handover: note which calibration checks were performed. E3 obtains its
+  range-noise assumption from a separate stationary accelerometer/ToF recording;
+  the gyro covariance remains a separate sensor diagnostic.
 
 E2 is complete when the team can explain the gyro result, the gravity check,
 what the reference identifies and how the held-out comparison supports its

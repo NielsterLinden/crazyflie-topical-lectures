@@ -26,10 +26,10 @@ define the practical; the extensions below are optional specialist explorations.
 | Optical-flow velocity | Direction-sensitive complementary measurement | Direct velocity measurements are uncommon in tracking detectors. |
 | Range measurement | One-dimensional strip or drift constraint | The measurement projection depends on detector geometry. |
 | Stationary update | Beam-spot, vertex, mass, or geometric constraint | A zero-velocity constraint has no direct charged-track equivalent. |
-| Innovation | Predicted hit residual | Use the state before adding the current hit. |
-| Innovation covariance | Residual covariance | It combines extrapolation uncertainty and hit resolution. |
-| [NIS](glossary.md#innovation-and-nis) | Incremental hit chi-square | Degrees of freedom equal the measurement dimension. |
-| NIS gate | Hit compatibility cut | In tracking this also affects pattern recognition and fake rate. |
+| Predicted residual | Predicted hit residual | Use the state before adding the current hit. |
+| Predicted residual covariance | Residual covariance | It combines extrapolation uncertainty and hit resolution. |
+| [chi-square](glossary.md#predicted-residual-and-chi-square) | Incremental hit chi-square | Degrees of freedom equal the measurement dimension. |
+| chi-square gate | Hit compatibility cut | In tracking this also affects pattern recognition and fake rate. |
 | Sensor dropout | Inefficient module or inactive detector region | Missing hits may be expected from geometry and detector status. |
 | Estimator reset | New track seed or refit from a changed hypothesis | Seed bias can influence finding efficiency and convergence. |
 | Forward live estimate | Filtered track state | It uses measurements only up to the current surface. |
@@ -128,7 +128,7 @@ The incremental compatibility statistic is
 \Delta\chi_k^2=y_k^TS_k^{-1}y_k.
 \]
 
-This is the same expression called NIS in the drone exercise. For a correct
+This is the same expression called chi-square in the drone exercise. For a correct
 linear-Gaussian model it follows a chi-square distribution with dimension equal
 to that hit update. The final track-fit chi-square depends on the full fit
 definition. Conditioning and selection can correlate successive residuals.
@@ -148,7 +148,7 @@ residual, vertex, and alignment studies, but cannot be used for a real-time
 decision made before future measurements exist.
 
 Residual terminology must state which state is used. A predicted residual is the
-innovation. A residual against a filtered state is biased toward the included
+predicted residual. A residual against a filtered state is biased toward the included
 measurement and has a different covariance. An unbiased residual for alignment
 or resolution studies may require removing the hit or using a suitable smoothed
 construction.
@@ -174,7 +174,7 @@ A typical combinatorial workflow is:
 Tight compatibility cuts reduce combinatorics and fakes but can reject real
 tracks with poor seeds, material interactions, or miscalibrated uncertainties.
 Loose cuts preserve efficiency but increase CPU cost and fake candidates. This
-resembles choosing a drone NIS gate, except collider gating also changes the
+resembles choosing a drone chi-square gate, except collider gating also changes the
 discrete pattern-recognition hypothesis.
 
 ## Outliers, holes, and model failure
@@ -265,8 +265,8 @@ resolution after silently discarding difficult particles.
 
 1. Label every drone estimate as predicted, filtered, or smoothed and plot the
    corresponding residuals separately.
-2. Whiten vector innovations with the full \(S\) matrix and compare their squared
-   norm (the NIS) with a chi-square distribution with the measurement dimension
+2. Whiten vector predicted residuals with the full \(S\) matrix and compare their squared
+   norm (the chi-square) with a chi-square distribution with the measurement dimension
    as its degrees of freedom. The norm itself follows a chi distribution under
    the same unbiased Gaussian assumptions.
 3. Introduce a sensor-frame misalignment. Show that increasing \(R\) does not

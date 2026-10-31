@@ -12,6 +12,24 @@ from .filter import PositionVelocityKalmanFilter
 
 ACCELERATION_COLUMNS = [f"a{axis}_world_m_s2" for axis in "xyz"]
 POSITION_COLUMNS = [f"p{axis}_m" for axis in "xyz"]
+MAX_GAP_S = 0.30
+
+
+def sample_interval(previous_time, time_s):
+    """Check a held-input interval before allowing propagation."""
+    if not math.isfinite(time_s):
+        raise ValueError("prepared times must be finite")
+    if previous_time is None:
+        return None
+    dt = time_s - previous_time
+    if dt <= 0:
+        raise ValueError("prepared times must be strictly increasing; normalize clocks/duplicates first")
+    # Subtracting epoch-scale timestamps inherits their representation error.
+    # Bound roundoff by half an ulp per timestamp, plus subtraction roundoff.
+    tolerance = max(1e-9, 0.5 * (math.ulp(previous_time) + math.ulp(time_s)) + math.ulp(dt))
+    if dt > MAX_GAP_S + tolerance:
+        raise ValueError("recording gaps exceed 0.30 s; choose a continuous checked recording or synthetic fallback")
+    return dt
 
 
 def load_recording(path, metadata_path):
@@ -45,8 +63,7 @@ def load_recording(path, metadata_path):
             values = [time_s, *acceleration, *(position if position is not None else [])]
             if not all(math.isfinite(value) for value in values):
                 raise ValueError("prepared recordings must contain finite values")
-            if samples and time_s <= samples[-1][0]:
-                raise ValueError("prepared times must be strictly increasing; normalize clocks/duplicates first")
+            sample_interval(samples[-1][0] if samples else None, time_s)
             samples.append((time_s, acceleration, position))
     if len(samples) < 2:
         raise ValueError("replay needs at least two samples")
@@ -61,20 +78,21 @@ class ReplayFilter:
         self.previous_time = None
 
     def step(self, time_s, acceleration, position):
+        dt = sample_interval(self.previous_time, time_s)
         estimator = self.estimator
         # Each prepared row supplies the process input for the interval ending here.
-        if self.previous_time is not None:
-            estimator.predict(time_s - self.previous_time, acceleration)
+        if dt is not None:
+            estimator.predict(dt, acceleration)
         self.previous_time = time_s
         accepted = estimator.update_position(position) if position is not None else None
-        row = dict(time_s=time_s, nis=estimator.last_nis if position is not None else "",
+        row = dict(time_s=time_s, chi2=estimator.last_chi2 if position is not None else "",
                    accepted=int(accepted) if accepted is not None else "")
         for axis_index, axis in enumerate("xyz"):
             row[f"p{axis}_m"] = estimator.position[axis_index]
             row[f"v{axis}_m_s"] = estimator.velocity[axis_index]
-            row[f"sigma_{axis}_m"] = math.sqrt(estimator.p[axis_index, axis_index])
+            row[f"sigma_{axis}_m"] = math.sqrt(estimator.C[axis_index, axis_index])
             row[f"measurement_{axis}_m"] = position[axis_index] if position is not None else ""
-            row[f"innovation_{axis}_m"] = estimator.last_innovation[axis_index] if position is not None else ""
+            row[f"predicted_residual_{axis}_m"] = estimator.last_predicted_residual[axis_index] if position is not None else ""
         return row
 
 

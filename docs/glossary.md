@@ -66,7 +66,7 @@ Its units depend on the quantities represented. See [filter covariances](#filter
 ## Cascaded estimation
 
 An estimation chain in which one estimator's output becomes another estimator's
-input. In E6, onboard position and attitude contribute to the laptop filter.
+input. In the optional six-state live comparison, onboard position and attitude contribute to the laptop filter.
 Shared sensor inputs and filtering can correlate these quantities; their
 uncertainties and dependencies belong in the model and interpretation. See
 [filtering and smoothing](#filtering-and-smoothing) for the time ordering of measurements.
@@ -122,8 +122,17 @@ the acceleration needed by the planned motion. See the
 
 In the Kalman filter, **Q** describes uncertainty added during process-model
 propagation, **R** describes measurement noise, and **P** describes uncertainty
-in the state estimate. The innovation covariance **S** combines predicted state
+in the state estimate. The predicted residual covariance **S** combines predicted state
 uncertainty and measurement uncertainty for the current update.
+
+Day 2 follows [Frühwirth (1987)](https://doi.org/10.1016/0168-9002(87)90887-4):
+state covariance is **C**, measurement covariance **V**, and process covariance
+**Q**. His predicted residual covariance **R** corresponds to **S** above.
+The superscript in \(x_k^{k-1}\), \(C_k^{k-1}\), \(r_k^{k-1}\) and
+\(R_k^{k-1}\) specifies that measurements through step \(k-1\) have been used.
+After incorporating measurement \(m_k\), the filtered quantities are
+\(x_k,C_k,r_k,R_k\). The notebook's predicted residual diagnostics use the predicted
+residual and its covariance.
 
 ## Filtering and smoothing
 
@@ -158,20 +167,31 @@ physical tracking accuracy from sensor noise followed by the controller.
 Inertial measurement unit: the Crazyflie's three-axis gyroscope and three-axis
 accelerometer. They provide body-axis angular rates and [specific force](#specific-force).
 
-## Innovation and NIS
+## Predicted residual and chi-square
 
-The innovation is the measurement minus its prediction, evaluated before adding
-that measurement to the estimate: \(y=z-H\hat x^-\) for a linear measurement.
-Normalized innovation squared (NIS) is \(y^TS^{-1}y\), using the
-[innovation covariance](#filter-covariances) \(S\). Under a consistent unbiased
+A residual compares an observation with the measurement model at a specified
+state estimate. The **predicted residual** is evaluated before adding
+that measurement to the estimate: \(r_k^{k-1}=m_k-H_kx_k^{k-1}\)
+for a linear measurement. In Day 2's notation its covariance is
+\(R_k^{k-1}=V_k+H_kC_k^{k-1}H_k^T\).
+
+The **filtered residual** uses the updated state:
+\(r_k=m_k-H_kx_k\), with covariance \(R_k=V_k-H_kC_kH_k^T\).
+The filter exposes the pre-update quantities as `last_predicted_residual` and
+`last_predicted_residual_covariance`. The predicted/filtered distinction follows
+the state used to evaluate each residual.
+
+The measurement's chi-square increment is
+\((r_k^{k-1})^T(R_k^{k-1})^{-1}r_k^{k-1}\), using the
+[predicted residual covariance](#filter-covariances). Under a consistent unbiased
 Gaussian model it follows a chi-square distribution with degrees of freedom
-equal to the measurement dimension. See [gating](#innovation-gating-and-tukey-weighting)
+equal to the measurement dimension. See [gating](#predicted-residual-gating-and-tukey-weighting)
 for selection based on this statistic and [whitening](#whitening-and-cholesky-factorization)
-for correlated innovations.
+for correlated predicted residuals.
 
-## Innovation gating and Tukey weighting
+## Predicted residual gating and Tukey weighting
 
-Innovation gating compares a measurement's NIS with a chosen threshold to decide
+Predicted residual gating compares a measurement's chi-square with a chosen threshold to decide
 whether to include the update. The threshold depends on measurement dimension
 and the intended false-rejection probability. Tukey weighting progressively
 downweights large residuals and gives zero weight beyond a cutoff. Both select
@@ -261,7 +281,7 @@ used to correct the predicted state.
 ## Pull and coverage
 
 A scalar pull is an error divided by its predicted standard deviation. Vector
-innovations can be [whitened](#whitening-and-cholesky-factorization) using their full covariance. Coverage is the fraction
+predicted residuals can be [whitened](#whitening-and-cholesky-factorization) using their full covariance. Coverage is the fraction
 of reference values contained in stated uncertainty intervals over repeated
 trials. Both require a specified reference and covariance definition.
 
@@ -301,7 +321,7 @@ interfaces each expect different quantities and units.
 
 A difference between an observation and a corresponding model prediction or
 estimate. Its sign and the state used to compute it are part of its definition.
-The [innovation](#innovation-and-nis) uses the state before the current update.
+The [predicted residual](#predicted-residual-and-chi-square) uses the state before the current update.
 Post-update residuals have different uncertainty because that measurement has
 already influenced the estimate.
 
@@ -389,13 +409,13 @@ See [trajectory construction](trajectory_construction.md#model-and-checks).
 ## Whitening and Cholesky factorization
 
 Whitening rescales correlated residuals using their covariance. For positive
-definite innovation covariance \(S=LL^T\), Cholesky factorization gives a lower
-triangular matrix \(L\); solve \(Lw=y\) for the whitened innovation \(w\).
+definite predicted residual covariance \(S=LL^T\), Cholesky factorization gives a lower
+triangular matrix \(L\); solve \(Lw=y\) for the whitened predicted residual \(w\).
 Under the filter's unbiased Gaussian assumptions, its components have unit
-covariance, and \(w^Tw\) is the NIS. See [uncertainty diagnostics](kalman_filter_practical.md#e3-tune-uncertainty-not-just-smoothness).
+covariance, and \(w^Tw\) is the chi-square. See [uncertainty diagnostics](kalman_filter_practical.md#e3-construct-and-tune-a-height-velocity-filter).
 
 ## ZUPT
 
 Zero-velocity update: a filter update using a zero-velocity constraint during
 verified stationary intervals. Its validity depends on the stationarity checks.
-See [stationary constraints](kalman_filter_practical.md#e5-missing-measurements-and-stationary-constraints).
+See [stationary constraints](kalman_filter_practical.md#e5-missing-range-and-a-known-rest-constraint).

@@ -17,24 +17,42 @@ class FilterConfig:
     range_noise_std: float = 0.03
     initial_position_std: float = 0.25
     initial_velocity_std: float = 0.50
-    nis_gate: float | None = None
+    chi2_gate: float | None = None
 
 
 class PositionVelocityKalmanFilter:
-    """State [px, py, pz, vx, vy, vz], with acceleration as process input."""
+    """State [px, py, pz, vx, vy, vz], with acceleration as process input.
+
+    Following Fruhwirth (1987): C is state covariance, V measurement
+    covariance, and R predicted-residual covariance. Diagnostics retain the
+    residual and its covariance before incorporating the current measurement.
+    """
 
     def __init__(self, config: FilterConfig | None = None) -> None:
         self.config = config or FilterConfig()
+        # state-vector: (position,velocity)
         self.x = np.zeros(6)
-        self.p = np.diag(
+        # State covariance C; the p attribute remains available to existing callers.
+        self.C = np.diag(
             [self.config.initial_position_std**2] * 3
             + [self.config.initial_velocity_std**2] * 3
         )
-        self.last_innovation = np.array([])
-        self.last_innovation_covariance = np.empty((0, 0))
-        self.last_nis = float("nan")
+        self.last_predicted_residual = np.array([])
+        # Store r_k^{k-1} and R_k^{k-1}, including when the update is rejected.
+        self.last_predicted_residual_covariance = np.empty((0, 0))
+        self.last_chi2 = float("nan")
         self.accepted_updates = 0
         self.rejected_updates = 0
+        self.last_V = None
+
+    @property
+    def p(self) -> np.ndarray:
+        """Compatibility name for the state covariance C."""
+        return self.C
+
+    @p.setter
+    def p(self, covariance: np.ndarray) -> None:
+        self.C = covariance
 
     @property
     def position(self) -> np.ndarray:
@@ -46,7 +64,7 @@ class PositionVelocityKalmanFilter:
 
     @property
     def position_covariance(self) -> np.ndarray:
-        return self.p[:3, :3].copy()
+        return self.C[:3, :3].copy()
 
     def predict(self, dt: float, acceleration_world: np.ndarray) -> None:
         if dt <= 0.0:
@@ -55,6 +73,8 @@ class PositionVelocityKalmanFilter:
         if acceleration.shape != (3,):
             raise ValueError("acceleration_world must contain ax, ay, az")
 
+        # F transports the state; B maps a known acceleration into position
+        # and velocity increments. Both are exact for interval-held acceleration.
         transition, acceleration_input = position_velocity_model(dt)
 
         # Model one independent, unknown acceleration perturbation held over
@@ -65,57 +85,58 @@ class PositionVelocityKalmanFilter:
         )
 
         self.x = transition @ self.x + acceleration_input @ acceleration
-        self.p = transition @ self.p @ transition.T + process_noise
-
-        # TODO 1: model accelerometer bias as part of the state.
-        # TODO 2: increase process noise during aggressive manoeuvres.
+        self.C = transition @ self.C @ transition.T + process_noise
 
     def update_position(self, measurement: np.ndarray) -> bool:
-        h = np.hstack((np.eye(3), np.zeros((3, 3))))
-        r = np.eye(3) * self.config.position_noise_std**2
-        return self._update(measurement, h, r)
+        # H selects position; V is the covariance of its measurement errors.
+        H = np.hstack((np.eye(3), np.zeros((3, 3))))
+        V = np.eye(3) * self.config.position_noise_std**2
+        return self._update(measurement, H, V)
 
     def update_flow_velocity(self, measurement_xy: np.ndarray) -> bool:
-        h = np.zeros((2, 6))
-        h[0, 3] = 1.0
-        h[1, 4] = 1.0
-        r = np.eye(2) * self.config.flow_velocity_noise_std**2
-        return self._update(measurement_xy, h, r)
+        H = np.zeros((2, 6))
+        H[0, 3] = 1.0
+        H[1, 4] = 1.0
+        V = np.eye(2) * self.config.flow_velocity_noise_std**2
+        return self._update(measurement_xy, H, V)
 
     def update_range(self, height_m: float) -> bool:
-        h = np.zeros((1, 6))
-        h[0, 2] = 1.0
-        r = np.array([[self.config.range_noise_std**2]])
-        return self._update(np.array([height_m]), h, r)
+        H = np.zeros((1, 6))
+        H[0, 2] = 1.0
+        V = np.array([[self.config.range_noise_std**2]])
+        return self._update(np.array([height_m]), H, V)
 
     def update_zero_velocity(self, noise_std: float = 0.02) -> bool:
-        h = np.hstack((np.zeros((3, 3)), np.eye(3)))
-        r = np.eye(3) * noise_std**2
-        return self._update(np.zeros(3), h, r)
+        H = np.hstack((np.zeros((3, 3)), np.eye(3)))
+        V = np.eye(3) * noise_std**2
+        return self._update(np.zeros(3), H, V)
 
-    def _update(self, measurement: np.ndarray, h: np.ndarray, r: np.ndarray) -> bool:
-        measurement = np.asarray(measurement, dtype=float)
-        innovation = measurement - h @ self.x
-        innovation_covariance = h @ self.p @ h.T + r
-        solved_innovation = np.linalg.solve(innovation_covariance, innovation)
-        nis = float(innovation.T @ solved_innovation)
+    def _update(self, measurement: np.ndarray, H: np.ndarray, V: np.ndarray) -> bool:
+        # On entry x and C are x_k^{k-1} and C_k^{k-1}; m is m_k.
+        self.last_V = V.copy()
+        m = np.asarray(measurement, dtype=float)
+        residual = m - H @ self.x
+        R = H @ self.C @ H.T + V
+        # The same inverse enters the chi-square increment and the gain.
+        R_inverse = np.linalg.inv(R)
+        chi2 = float(residual @ R_inverse @ residual)
 
-        self.last_innovation = innovation
-        self.last_innovation_covariance = innovation_covariance
-        self.last_nis = nis
+        self.last_predicted_residual = residual
+        self.last_predicted_residual_covariance = R
+        self.last_chi2 = chi2
 
-        # Callers may select nis_gate per update, as in Day 2's threshold exercise.
-        if self.config.nis_gate is not None and nis > self.config.nis_gate:
+        # Callers may select chi2_gate per update, as in Day 2's threshold exercise.
+        if self.config.chi2_gate is not None and chi2 > self.config.chi2_gate:
             self.rejected_updates += 1
             return False
 
-        kalman_gain = np.linalg.solve(innovation_covariance, h @ self.p).T
-        self.x = self.x + kalman_gain @ innovation
+        kalman_gain = self.C @ H.T @ R_inverse
+        self.x = self.x + kalman_gain @ residual
 
         # Joseph form preserves symmetry and positive semidefiniteness better.
         identity = np.eye(6)
-        residual = identity - kalman_gain @ h
-        self.p = residual @ self.p @ residual.T + kalman_gain @ r @ kalman_gain.T
-        self.p = 0.5 * (self.p + self.p.T)
+        correction = identity - kalman_gain @ H
+        self.C = correction @ self.C @ correction.T + kalman_gain @ V @ kalman_gain.T
+        self.C = 0.5 * (self.C + self.C.T)
         self.accepted_updates += 1
         return True

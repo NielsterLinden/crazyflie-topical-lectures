@@ -37,23 +37,24 @@ def validate_position_dropout(data: ExperimentData, case: ExperimentCase) -> Non
     if not np.isfinite(case.dropout_s) or case.dropout_s < 0:
         raise ValueError("dropout duration must be finite and nonnegative")
     start, end = 7.0, 7.0 + case.dropout_s
+    elapsed = data.elapsed_time
     recovery_end = end + 2.0
     fallback = ("Use a checked recording covering the interval (normally a 30 s capture), "
                 "or explicitly select the synthetic fallback for E5.")
-    if data.time[-1] < recovery_end - 1e-9:
+    if elapsed[-1] < recovery_end - 1e-9:
         raise ValueError(f"Position-dropout comparison needs data through {recovery_end:g} s "
                          f"for loss and recovery. {fallback}")
     observed = np.all(np.isfinite(data.measured_position), axis=1)
     if data.has_truth:
         observed &= np.array([sensor_available("position", index, timestamp, case.disabled, 0)
-                              for index, timestamp in enumerate(data.time)])
+                              for index, timestamp in enumerate(elapsed)])
     else:
         observed[0] = False  # The first position initializes the recorded-data estimate.
         if "position" in case.disabled:
             observed[:] = False
-    windows = (("before", data.time < start),
-               ("during", (data.time >= start) & (data.time <= end)),
-               ("after", (data.time > end) & (data.time <= recovery_end)))
+    windows = (("before", elapsed < start),
+               ("during", (elapsed >= start) & (elapsed <= end)),
+               ("after", (elapsed > end) & (elapsed <= recovery_end)))
     for name, window in windows:
         if np.count_nonzero(observed & window) < 2:
             raise ValueError(f"Position-dropout comparison needs at least two source position "
@@ -61,12 +62,12 @@ def validate_position_dropout(data: ExperimentData, case: ExperimentCase) -> Non
 
 
 def run_experiment(data: ExperimentData, case: ExperimentCase, alpha: float = 0.01,
-                   *, innovation_policy=None, stationary_policy=None) -> dict:
+                   *, predicted_residual_policy=None, stationary_policy=None) -> dict:
     validate_position_dropout(data, case)
     # Notebook cells can supply the same decisions as exercise_policies.py,
     # without changing module globals or the command-line experiment runner.
-    if innovation_policy is None:
-        innovation_policy = exercise_policies.innovation_threshold
+    if predicted_residual_policy is None:
+        predicted_residual_policy = exercise_policies.predicted_residual_threshold
     if stationary_policy is None:
         stationary_policy = exercise_policies.stationary_update_allowed
     estimator = PositionVelocityKalmanFilter(replace(case.config))
@@ -79,31 +80,32 @@ def run_experiment(data: ExperimentData, case: ExperimentCase, alpha: float = 0.
         # assumed measurement variance. The loader starts analysis at the first
         # available observation, retaining the original recording clock.
         estimator.x[:3] = data.measured_position[0]
-        estimator.p[:3, :3] = np.eye(3) * case.config.position_noise_std**2
+        estimator.C[:3, :3] = np.eye(3) * case.config.position_noise_std**2
     pipeline = SensorFusionPipeline(estimator)
     states, events, stationary_records, flow_samples = [], [], [], []
 
     def update(sensor, measurement, timestamp, callback):
         dimension = np.size(measurement)
-        threshold = case.config.nis_gate
+        threshold = case.config.chi2_gate
         if case.participant_gate:
-            threshold = innovation_policy(dimension, alpha)
+            threshold = predicted_residual_policy(dimension, alpha)
         if threshold is not None and (not np.isfinite(threshold) or threshold <= 0.0):
-            raise ValueError("the innovation policy must return a positive finite threshold or None")
-        estimator.config.nis_gate = threshold
+            raise ValueError("the predicted-residual policy must return a positive finite threshold or None")
+        estimator.config.chi2_gate = threshold
         accepted = callback(measurement)
         # Copy now: the next asynchronous sensor update overwrites last_*.
-        innovation = estimator.last_innovation.copy()
-        covariance = estimator.last_innovation_covariance.copy()
-        pull = np.linalg.solve(np.linalg.cholesky(covariance), innovation)
+        predicted_residual = estimator.last_predicted_residual.copy()
+        covariance = estimator.last_predicted_residual_covariance.copy()
+        pull = np.linalg.solve(np.linalg.cholesky(covariance), predicted_residual)
         events.append(dict(time_s=float(timestamp), sensor=sensor, dimension=dimension,
                            accepted=bool(accepted), threshold=threshold,
                            measurement=np.atleast_1d(measurement).copy(),
-                           predicted_measurement=np.atleast_1d(measurement) - innovation,
-                           innovation=innovation, covariance=covariance, pull=pull,
-                           nis=float(estimator.last_nis)))
+                           predicted_measurement=np.atleast_1d(measurement) - predicted_residual,
+                           predicted_residual=predicted_residual,
+                           predicted_residual_covariance=covariance, pull=pull,
+                           chi2=float(estimator.last_chi2)))
 
-    for sample, timestamp in enumerate(data.time):
+    for sample, (timestamp, elapsed) in enumerate(zip(data.time, data.elapsed_time)):
         pipeline.on_imu(float(timestamp), data.measured_acceleration[sample])
         observations = (
             ("position", data.measured_position[sample], pipeline.on_position),
@@ -114,10 +116,10 @@ def run_experiment(data: ExperimentData, case: ExperimentCase, alpha: float = 0.
             if not data.has_truth:
                 available = (sensor == "position" and sample > 0
                              and sensor not in case.disabled
-                             and not (case.dropout_s > 0 and 7.0 <= timestamp <= 7.0 + case.dropout_s)
+                             and not (case.dropout_s > 0 and 7.0 <= elapsed <= 7.0 + case.dropout_s)
                              and np.all(np.isfinite(measurement)))
             else:
-                available = sensor_available(sensor, sample, timestamp, case.disabled, case.dropout_s)
+                available = sensor_available(sensor, sample, elapsed, case.disabled, case.dropout_s)
             if available:
                 update(sensor, measurement, timestamp, callback)
                 if sensor == "flow":
@@ -134,13 +136,13 @@ def run_experiment(data: ExperimentData, case: ExperimentCase, alpha: float = 0.
                 update("zero_velocity", np.zeros(3), timestamp,
                        lambda measurement: pipeline.on_stationary())
         states.append(dict(time_s=float(timestamp), estimate=estimator.x.copy(),
-                           variance=np.diag(estimator.p).copy(),
+                           variance=np.diag(estimator.C).copy(),
                            truth=np.r_[data.position[sample], data.velocity[sample]]))
     return dict(states=states, events=events, stationarity=stationary_records)
 
 
 def interval_labels(data: ExperimentData, case: ExperimentCase) -> np.ndarray:
-    times = data.time
+    times = data.elapsed_time
     labels = np.full(len(times), "nominal", dtype="U20")
     labels[times < 2.0] = "startup"
     if case.dropout_s:
@@ -148,7 +150,8 @@ def interval_labels(data: ExperimentData, case: ExperimentCase) -> np.ndarray:
     if data.scenario == "outlier":
         outlier_time = 12.0
         if data.metadata:
-            outlier_time = data.metadata["interventions"][0]["time_s"]
+            outlier_time = (data.metadata["interventions"][0]["time_s"]
+                            - data.metadata["analysis_time_origin_s"])
         labels[(times >= outlier_time) & (times < outlier_time + 0.5)] = "outlier_recovery"
     elif data.scenario == "range-step":
         labels[(times >= 8.0) & (times < 11.0)] = "range_step"
@@ -205,7 +208,7 @@ def summarize(result: dict, data: ExperimentData, case: ExperimentCase, seed: in
             period = 0.04 if sensor == "flow" else 0.1
             diagnostics.append(dict(sensor=sensor, interval=label, dimension=events[0]["dimension"],
                                     updates=len(events), rejected=sum(not event["accepted"] for event in events),
-                                    nis_mean=float(np.mean([event["nis"] for event in events])),
+                                    chi2_mean=float(np.mean([event["chi2"] for event in events])),
                                     pull_mean=np.mean(pulls, axis=0).tolist(),
                                     pull_std=np.std(pulls, axis=0, ddof=1).tolist() if len(pulls) > 1 else None,
                                     pull_lag1=[lag_correlation(pulls[:, axis], 1, times, period)
@@ -242,12 +245,12 @@ def save_run(directory: Path, result: dict, data: ExperimentData) -> None:
     write_csv(directory / "states.csv", states)
     events = []
     for event in result["events"]:
-        row = {key: event[key] for key in ("time_s", "sensor", "dimension", "accepted", "nis", "threshold")}
+        row = {key: event[key] for key in ("time_s", "sensor", "dimension", "accepted", "chi2", "threshold")}
         for axis in range(3):
-            for key in ("measurement", "predicted_measurement", "innovation", "pull"):
+            for key in ("measurement", "predicted_measurement", "predicted_residual", "pull"):
                 row[f"{key}_{axis}"] = float(event[key][axis]) if axis < event["dimension"] else ""
             for column in range(3):
-                row[f"S_{axis}{column}"] = (float(event["covariance"][axis, column])
+                row[f"R_predicted_{axis}{column}"] = (float(event["predicted_residual_covariance"][axis, column])
                                             if max(axis, column) < event["dimension"] else "")
         events.append(row)
     write_csv(directory / "updates.csv", events)
@@ -265,27 +268,35 @@ def plot_diagnostics(result: dict, destination: Path, alpha: float, regular_timi
     for column, sensor in enumerate(sensors):
         events = [event for event in result["events"] if event["sensor"] == sensor]
         time = np.array([event["time_s"] for event in events])
-        nis = np.array([event["nis"] for event in events])
+        chi2_values = np.array([event["chi2"] for event in events])
         accepted = np.array([event["accepted"] for event in events])
-        axes[0, column].plot(time, nis, ".", markersize=2, label="all pre-gate NIS")
-        axes[0, column].plot(time[~accepted], nis[~accepted], "rx", label="rejected")
+        axes[0, column].plot(time, chi2_values, ".", markersize=2, label="all pre-gate chi-square")
+        axes[0, column].plot(time[~accepted], chi2_values[~accepted], "rx", label="rejected")
         axes[0, column].axhline(chi2.ppf(1 - alpha, events[0]["dimension"]), linestyle="--",
                                color="black", label="chi-square reference")
-        axes[0, column].set(title=f"{sensor}, m={events[0]['dimension']}", xlabel="time [s]", ylabel="NIS")
+        axes[0, column].set(title=f"{sensor}, m={events[0]['dimension']}", xlabel="time [s]", ylabel="chi-square")
         axes[0, column].legend(fontsize="small")
         pulls = np.array([event["pull"] for event in events])
+        reference_axis = np.linspace(-4.0, 4.0, 301)
+        normal_density = np.exp(-0.5 * reference_axis**2) / np.sqrt(2 * np.pi)
         for axis in range(pulls.shape[1]):
-            axes[1, column].hist(pulls[:, axis], bins=35, histtype="step", density=True, label=f"component {axis}")
+            mean = float(np.mean(pulls[:, axis]))
+            variance = float(np.var(pulls[:, axis], ddof=1)) if len(pulls) > 1 else float("nan")
+            axes[1, column].hist(
+                pulls[:, axis], bins=35, histtype="step", density=True,
+                label=f"component {axis}: mean={mean:.2f}, var={variance:.2f}",
+            )
             if regular_timing:
                 period = 0.04 if sensor == "flow" else 0.1
                 correlations = [lag_correlation(pulls[:, axis], lag, time, period) for lag in range(1, 11)]
                 axes[2, column].plot(range(1, 11), [value if value is not None else np.nan for value in correlations])
             else:
                 axes[2, column].plot(time, pulls[:, axis], ".", markersize=2)
-        axes[1, column].set(xlabel="whitened innovation", ylabel="density (all updates)")
+        axes[1, column].plot(reference_axis, normal_density, "k--", label="N(0, 1)")
+        axes[1, column].set(xlabel="whitened predicted residual", ylabel="density (all updates)")
         axes[1, column].legend(fontsize="small")
         axes[2, column].set(xlabel="lag [sensor updates]" if regular_timing else "recording time [s]",
-                            ylabel="pull correlation" if regular_timing else "whitened innovation")
+                            ylabel="pull correlation" if regular_timing else "whitened predicted residual")
     figure.suptitle("All intervals combined; use summary.json for interval-specific diagnostics")
     figure.tight_layout()
     figure.savefig(destination, dpi=120)
@@ -375,7 +386,7 @@ def make_cases(args) -> list[ExperimentCase]:
             changed = replace(config, position_noise_std=config.position_noise_std * np.sqrt(scale),
                               flow_velocity_noise_std=config.flow_velocity_noise_std * np.sqrt(scale),
                               range_noise_std=config.range_noise_std * np.sqrt(scale))
-            cases.append(replace(base, name=f"R-times-{scale:g}", config=changed))
+            cases.append(replace(base, name=f"V-times-{scale:g}", config=changed))
         return cases
     if args.study == "gating":
         return [base, replace(base, name="participant-gate", participant_gate=True)]
@@ -442,7 +453,7 @@ def check_policies(exercise: str = "all") -> list[str]:
     failures = []
     if exercise in ("E4", "all"):
         for dimension in (1, 2, 3):
-            actual = exercise_policies.innovation_threshold(dimension, 0.01)
+            actual = exercise_policies.predicted_residual_threshold(dimension, 0.01)
             if actual is None or not np.isclose(actual, chi2.ppf(0.99, dimension)):
                 failures.append(f"E4: check the 1% false-rejection threshold for dimension {dimension}")
     if exercise == "E4":
@@ -503,7 +514,7 @@ def main(argv=None) -> int:
     if not 0.0 < args.alpha < 1.0:
         parser.error("alpha must be between 0 and 1")
     cases = make_cases(args)
-    if any(case.participant_gate for case in cases) and exercise_policies.innovation_threshold(3, args.alpha) is None:
+    if any(case.participant_gate for case in cases) and exercise_policies.predicted_residual_threshold(3, args.alpha) is None:
         print("E4 starter returns None: participant gating is currently disabled. Edit exercise_policies.py.")
     if args.study == "stationarity":
         print("E5 calls your stationary policy; the supplied starter declines all updates.")
@@ -534,7 +545,7 @@ def main(argv=None) -> int:
                 summaries.append(summary)
                 nominal = next((row for row in summary["intervals"] if row["interval"] == "nominal"), None)
                 if nominal is not None and data.has_truth:
-                    print(f"{case.name}, seed {seed}: nominal position RMSE {nominal['position_rmse_m']:.4f} m")
+                    print(f"{case.name}, seed {seed}: nominal position VMSE {nominal['position_rmse_m']:.4f} m")
                 if data.scenario == "stationary":
                     print(f"{case.name}, seed {seed}: accepted ZUPTs during motion = {summary['false_stationary_updates']}")
                 runs.append((case, seed, result, data))

@@ -32,7 +32,7 @@ python -m day3.uncertainty
 
 E7 can also select `--scenario nominal`, `dropout` or `outlier`. Use the same
 `--seed` for matched noise, and `--output ../E7/nominal.png --no-show` to save
-figures. The [E7 worksheet](../../docs/kalman_filter_practical.md#e7-turn-covariance-into-a-racing-decision)
+figures. The [E7 worksheet](../../docs/kalman_filter_practical.md#e7-carry-the-filters-uncertainty-into-a-race-decision)
 describes the baseline/candidate comparison.
 
 The first command is a disabled synthetic planning example, not a surveyed

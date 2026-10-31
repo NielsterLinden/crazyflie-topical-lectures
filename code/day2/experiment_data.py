@@ -33,22 +33,26 @@ class ExperimentData:
     has_truth: bool = True
     metadata: dict | None = None
 
+    @property
+    def elapsed_time(self) -> np.ndarray:
+        """Experiment windows use elapsed time; plots retain the recorded clock."""
+        origin = self.metadata.get("analysis_time_origin_s", 0.0) if self.metadata else 0.0
+        return self.time - origin
+
 
 def load_prepared_data(recording: Path, metadata_path: Path, scenario: str) -> ExperimentData:
     """Use the existing live/prepared format without inventing absent sensors."""
     if scenario not in ("nominal", "dropout", "outlier"):
         raise ValueError("prepared recordings support nominal, dropout or position outlier only; use synthetic scenarios for other sensors")
     samples, metadata = load_recording(recording, metadata_path)
-    time = np.array([row[0] - samples[0][0] for row in samples])
-    if np.any(np.diff(time) > 0.30 + 1e-9):
-        raise ValueError("recording gaps exceed 0.30 s; use the checked recording or synthetic fallback")
+    time = np.array([row[0] for row in samples])
+    analysis_origin = float(time[0])
     first_position = next((index for index, row in enumerate(samples) if row[2] is not None), None)
     if first_position is None:
         raise ValueError("prepared recording needs a position observation for initialization")
     # Absolute position is unanchored before this observation. Start analysis
     # here rather than propagating an arbitrary origin or back-filling position.
     time = time[first_position:]
-    analysis_origin = samples[0][0]
     samples = samples[first_position:]
     acceleration = np.array([row[1] for row in samples])
     position = np.array([row[2] if row[2] is not None else np.full(3, np.nan) for row in samples])
@@ -60,9 +64,11 @@ def load_prepared_data(recording: Path, metadata_path: Path, scenario: str) -> E
                     input_metadata_sha256=hashlib.sha256(metadata_path.read_bytes()).hexdigest(),
                     interventions=[])
     if scenario == "outlier":
-        candidates = np.flatnonzero((time >= 12.0) & np.all(np.isfinite(position), axis=1))
+        candidates = np.flatnonzero((time - analysis_origin >= 12.0) & np.all(np.isfinite(position), axis=1))
+        # The first position initializes the estimate without a gated update.
+        candidates = candidates[candidates > 0]
         if not len(candidates):
-            raise ValueError("outlier study needs a position observation at or after 12 s; use the checked 30 s recording or synthetic fallback")
+            raise ValueError("outlier study needs a position update after initialization at or after 12 s; use the checked 30 s recording or synthetic fallback")
         index = candidates[0]
         position[index, 1] += 0.65
         metadata["interventions"].append(dict(kind="software_position_outlier", time_s=float(time[index]), offset_y_m=0.65))

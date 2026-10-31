@@ -1,8 +1,8 @@
 # Rotations, complex numbers and quaternions
 
 **Further reading.** This is optional mathematical background on orientation.
-The E6 live helper performs the quaternion-to-world-frame conversion; use the
-[recording guide](sensor_recording_contract.md#live-e6-session-and-replay-fallback)
+The optional six-state live helper performs the quaternion-to-world-frame conversion; use the
+[recording guide](sensor_recording_contract.md#live-six-state-session-and-replay-fallback)
 for its practical frame and calibration checks.
 
 Multiplication can describe a rotation. In a plane, unit complex numbers encode
@@ -227,7 +227,7 @@ noncommuting products needed for the full spatial rotation group.
 
 ## Connection to the drone measurements
 
-The [live E6 session](sensor_recording_contract.md#live-e6-session-and-replay-fallback)
+The [optional six-state session](sensor_recording_contract.md#live-six-state-session-and-replay-fallback)
 records quaternions in **x,y,z,w** order. The equations here write the scalar
 first, **w,x,y,z**. Once placed in the appropriate order, the body-to-world
 quaternion gives

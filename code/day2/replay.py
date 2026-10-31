@@ -24,22 +24,25 @@ def save_results(results, metadata, config, output):
         writer.writeheader()
         writer.writerows(results)
     times = [row["time_s"] for row in results]
-    figure, axes = plt.subplots(3, 2, figsize=(11, 8), sharex=True)
+    figure, axes = plt.subplots(3, 3, figsize=(15, 8), sharex=True)
     for index, axis in enumerate("xyz"):
         position = np.array([row[f"p{axis}_m"] for row in results])
         sigma = np.array([row[f"sigma_{axis}_m"] for row in results])
         measured = [float(row[f"measurement_{axis}_m"]) if row[f"measurement_{axis}_m"] != "" else np.nan
                     for row in results]
-        innovation = [float(row[f"innovation_{axis}_m"]) if row[f"innovation_{axis}_m"] != "" else np.nan
+        predicted_residual = [float(row[f"predicted_residual_{axis}_m"]) if row[f"predicted_residual_{axis}_m"] != "" else np.nan
                       for row in results]
         axes[index, 0].plot(times, position, label="estimate")
         axes[index, 0].plot(times, measured, ".", label="observation")
         axes[index, 0].fill_between(times, position - 1.96 * sigma, position + 1.96 * sigma,
                                     alpha=0.2, label="model 95% band")
         axes[index, 0].set_ylabel(f"{axis} position [m]")
-        # Mark isolated updates too: NaN gaps should not make sparse innovations invisible.
-        axes[index, 1].plot(times, innovation, ".-")
-        axes[index, 1].set_ylabel(f"{axis} innovation [m]")
+        velocity = [row[f"v{axis}_m_s"] for row in results]
+        axes[index, 1].plot(times, velocity, label="estimate")
+        axes[index, 1].set_ylabel(f"{axis} velocity [m/s]")
+        # Mark isolated updates too: gaps must not hide sparse residuals.
+        axes[index, 2].plot(times, predicted_residual, ".-")
+        axes[index, 2].set_ylabel(f"{axis} predicted residual [m]")
     axes[0, 0].legend(fontsize="small")
     for plot in axes[-1]:
         plot.set_xlabel("Recording time [s]")

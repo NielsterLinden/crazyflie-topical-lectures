@@ -58,8 +58,8 @@ def plot(records: dict[str, np.ndarray], scenario: str = "combined",
     axes[0, 1].set(xlabel="time [s]", ylabel="position error [m]", title="Error and +/-2 sigma")
     axes[0, 1].legend(ncols=2, fontsize="small")
 
-    axes[1, 0].plot(time_s, records["nis"])
-    axes[1, 0].set(xlabel="time [s]", ylabel="NIS", title="Maximum NIS across sensors")
+    axes[1, 0].plot(time_s, records["chi2"])
+    axes[1, 0].set(xlabel="time [s]", ylabel="chi-square", title="Maximum chi-square across sensors")
     axes[1, 0].set_yscale("symlog", linthresh=1.0)
 
     axes[1, 1].plot(time_s, records["speed"], label="recommended speed")

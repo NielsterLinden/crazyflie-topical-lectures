@@ -27,11 +27,11 @@ language](collider_tracking_kalman_analogies.md).
 | Optical-flow velocity | Complementary subdetector measurement | Response depends on altitude, texture, attitude, and calibration. |
 | Range measurement | One-dimensional detector constraint | Geometry and incidence angle affect the measurement model. |
 | Kalman prediction | Propagation of track parameters and covariance | Here the transition includes commanded or measured acceleration. |
-| [Innovation](glossary.md#innovation-and-nis) \(y=z-H\hat x^-\) | Hit residual against the predicted track | Evaluated before incorporating the current measurement. |
-| Innovation covariance \(S\) | Predicted residual covariance | It combines propagated uncertainty and measurement resolution. |
-| [NIS](glossary.md#innovation-and-nis) \(y^TS^{-1}y\) | Chi-square contribution of one measurement block | Its degrees of freedom equal the dimension of that update. |
+| [Predicted residual](glossary.md#predicted-residual-and-chi-square) \(y=z-H\hat x^-\) | Hit residual against the predicted track | Evaluated before incorporating the current measurement. |
+| Predicted residual covariance \(S\) | Predicted residual covariance | It combines propagated uncertainty and measurement resolution. |
+| [chi-square](glossary.md#predicted-residual-and-chi-square) \(y^TS^{-1}y\) | Chi-square contribution of one measurement block | Its degrees of freedom equal the dimension of that update. |
 | Normalized scalar residual | [Pull](glossary.md#pull-and-coverage) | Unit width requires an unbiased model and correct covariance. |
-| NIS gate | Outlier or hit-rejection cut | Rejection can hide a bad propagation model, not only bad data. |
+| chi-square gate | Outlier or hit-rejection cut | Rejection can hide a bad propagation model, not only bad data. |
 | Process covariance \(Q\) | Multiple scattering, energy-loss fluctuations, or model uncertainty | \(Q\) describes uncertainty accumulated during propagation. |
 | Measurement covariance \(R\) | Detector resolution and channel correlations | Correlated measurements require off-diagonal terms. |
 | State covariance \(P\) | Track-parameter covariance matrix | It is an uncertainty claim requiring coverage validation. |
@@ -58,10 +58,8 @@ S_k=H_kP_k^-H_k^T+R_k,
 \hat x_k^+=\hat x_k^-+K_ky_k.
 \]
 
-In detector jargon, \(y_k\) is the innovation or predicted hit residual and
-\(\chi_k^2\) is that measurement block's chi-square contribution. In control
-jargon the same scalar is normalized innovation squared (NIS). They are
-numerically identical when the same residual and covariance are used. A total
+In detector jargon, \(y_k\) is the predicted hit residual and
+\(\chi_k^2\) is that measurement block's chi-square contribution. A total
 fit chi-square combines contributions according to the full fit definition.
 
 For a scalar residual, the pull is
@@ -71,7 +69,7 @@ p_k=\frac{y_k}{\sqrt{S_k}}.
 \]
 
 For a vector update, dividing each component only by its diagonal standard
-deviation ignores correlations. Use NIS or [whiten the innovation](glossary.md#whitening-and-cholesky-factorization)
+deviation ignores correlations. Use chi-square or [whiten the predicted residual](glossary.md#whitening-and-cholesky-factorization)
 with a factorization of \(S_k\). Validate distributions over many events or race runs,
 not from one visually smooth trajectory.
 
@@ -174,7 +172,7 @@ from one event.
 1. Which drone residual corresponds most closely to an unbiased hit residual?
 2. Is a broad pull caused by underestimated \(Q\), underestimated \(R\), bias, or
    non-Gaussian tails? What additional plot distinguishes them?
-3. When does NIS gating become equivalent to discarding inconvenient hits?
+3. When does chi-square gating become equivalent to discarding inconvenient hits?
 4. Which drone parameters resemble alignment constants, and which vary too fast
    to calibrate offline?
 5. What is the drone equivalent of training and evaluating on the same events?

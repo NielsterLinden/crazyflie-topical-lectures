@@ -1,4 +1,4 @@
-"""Day 2 baseline: motion, estimation errors, uncertainty and innovation scale."""
+"""Day 2 baseline: motion, estimation errors, uncertainty and predicted residual scale."""
 
 import matplotlib.pyplot as plt
 
@@ -21,8 +21,8 @@ def plot(records):
     axes[1].axvspan(7, 10, color="0.9", label="position dropout")
     axes[1].set(xlabel="time [s]", ylabel="error [m]", title="Position error and model +/-2 sigma")
     axes[1].legend()
-    axes[2].plot(time, records["nis"])
-    axes[2].set(xlabel="time [s]", ylabel="maximum NIS", title="Mixed-sensor anomaly locator; E3 supplies per-sensor diagnostics")
+    axes[2].plot(time, records["chi2"])
+    axes[2].set(xlabel="time [s]", ylabel="maximum chi-square", title="Mixed-sensor anomaly locator; E3 supplies per-sensor diagnostics")
     axes[2].set_yscale("symlog", linthresh=1)
     figure.tight_layout()
     plt.show()

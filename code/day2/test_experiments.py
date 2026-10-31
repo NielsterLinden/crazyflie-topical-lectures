@@ -17,12 +17,84 @@ from . import exercise_policies
 from .experiment_data import (GRAVITY, SCENARIOS, generate_data, sensor_available,
                               load_prepared_data, stationary_features, stationary_motion)
 from .experiments import (ExperimentCase, check_policies, lag_correlation, main,
-                          export_prepared, make_cases, run_experiment, summarize,
-                          validate_position_dropout)
+                          export_prepared, make_cases, plot_diagnostics, run_experiment, summarize,
+                          interval_labels, validate_position_dropout)
 from kalman.filter import FilterConfig, PositionVelocityKalmanFilter
+from kalman.recording import load_recording, replay
 
 
 class ExperimentTests(unittest.TestCase):
+    def test_outlier_after_late_initialization_is_gated_not_used_as_a_prior(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            recording, metadata = root / "prepared.csv", root / "recording.json"
+            example = Path(__file__).resolve().parents[2] / "examples/replay.synthetic.json"
+            metadata.write_text(example.read_text())
+            for further_positions in (True, False):
+                with recording.open("w", newline="") as stream:
+                    writer = csv.writer(stream)
+                    writer.writerow(["time_s", "ax_world_m_s2", "ay_world_m_s2",
+                                     "az_world_m_s2", "px_m", "py_m", "pz_m"])
+                    for index in range(125):
+                        observed = index == 120 or (further_positions and index > 120)
+                        position = [0, 0, 1] if observed else ["", "", ""]
+                        writer.writerow([index / 10, 0, 0, 0, *position])
+                original = recording.read_bytes()
+                if not further_positions:
+                    with self.assertRaisesRegex(ValueError, "after initialization"):
+                        load_prepared_data(recording, metadata, "outlier")
+                    continue
+                data = load_prepared_data(recording, metadata, "outlier")
+                np.testing.assert_array_equal(data.measured_position[0], [0, 0, 1])
+                self.assertEqual(data.metadata["interventions"][0]["time_s"], 12.1)
+                case = ExperimentCase("gated", FilterConfig(chi2_gate=chi2.ppf(.99, 3)), "outlier")
+                result = run_experiment(data, case)
+                fault = result["events"][0]
+                self.assertEqual(fault["time_s"], 12.1)
+                self.assertFalse(fault["accepted"])
+                self.assertAlmostEqual(fault["predicted_residual"][1], .65)
+                self.assertTrue(all(event["accepted"] for event in result["events"][1:]))
+                self.assertEqual(recording.read_bytes(), original)
+
+    def test_nonzero_recording_clock_is_shared_by_experiments_and_replay(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            case = ExperimentCase("baseline", FilterConfig(), "nominal")
+            export_prepared(generate_data(0, "nominal"), case, root, 0)
+            recording, metadata = root / "prepared.csv", root / "recording.json"
+            with recording.open(newline="") as stream:
+                rows = list(csv.reader(stream))
+            for row in rows[1:]:
+                row[0] = str(float(row[0]) + 100.)
+            # Retain leading rows with no position, and their clock origin.
+            rows[1][4:] = ["", "", ""]
+            with recording.open("w", newline="") as stream:
+                csv.writer(stream).writerows(rows)
+            original = recording.read_bytes()
+            data = load_prepared_data(recording, metadata, "nominal")
+            samples, _ = load_recording(recording, metadata)
+            replay_rows = replay(samples, FilterConfig())
+            self.assertAlmostEqual(data.time[0], 100.1)
+            self.assertAlmostEqual(data.metadata["initialization_time_s"], 100.1)
+            self.assertEqual(data.metadata["analysis_time_origin_s"], 100.)
+            np.testing.assert_allclose(data.time, [row["time_s"] for row in replay_rows][5:])
+            np.testing.assert_allclose(data.elapsed_time, data.time - 100.)
+            gap = replace(case, dropout_s=3.)
+            result = run_experiment(data, gap)
+            self.assertTrue(any(event["time_s"] < 107. for event in result["events"]))
+            self.assertFalse(any(107. <= event["time_s"] <= 110. for event in result["events"]))
+            self.assertTrue(any(110. < event["time_s"] <= 112. for event in result["events"]))
+            labels = interval_labels(data, gap)
+            self.assertTrue(np.all(labels[data.time < 102.] == "startup"))
+            self.assertTrue(np.all(labels[(data.time >= 107.) & (data.time <= 110.)] == "dropout"))
+            fault = load_prepared_data(recording, metadata, "outlier")
+            index = np.flatnonzero(np.any(np.nan_to_num(fault.measured_position - data.measured_position), axis=1))
+            self.assertEqual(len(index), 1)
+            self.assertAlmostEqual(fault.time[index[0]], 112.)
+            self.assertEqual(fault.metadata["interventions"][0]["time_s"], 112.)
+            self.assertEqual(interval_labels(fault, case)[index[0]], "outlier_recovery")
+            self.assertEqual(recording.read_bytes(), original)
+
     def test_dropout_rejects_short_recording_and_missing_observation_phases(self):
         case = ExperimentCase("dropout", FilterConfig(), "dropout", dropout_s=3)
         short = replace(generate_data(0, "nominal", duration_s=5), has_truth=False)
@@ -117,14 +189,47 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(len(result["events"]), 12)  # 3 position + 6 flow + 3 range
         self.assertEqual([event["sensor"] for event in result["events"][:3]], ["position", "flow", "range"])
         for event in result["events"]:
-            self.assertEqual(event["innovation"].shape, (event["dimension"],))
-            np.testing.assert_allclose(event["pull"] @ event["pull"], event["nis"], rtol=1e-12)
+            self.assertEqual(event["predicted_residual"].shape, (event["dimension"],))
+            self.assertEqual(event["predicted_residual_covariance"].shape,
+                             (event["dimension"], event["dimension"]))
+            np.testing.assert_allclose(event["pull"] @ event["pull"], event["chi2"], rtol=1e-12)
             self.assertTrue(event["accepted"])
+
+    def test_diagnostic_pull_histograms_show_moments_and_normal_reference(self):
+        import matplotlib.pyplot as plt
+
+        pulls = np.array([[0.0, 1.0, -2.0], [1.0, 2.0, 0.0], [2.0, 3.0, 2.0]])
+        events = [
+            dict(sensor="position", time_s=float(index), chi2=float(pull @ pull),
+                 accepted=True, threshold=7.815, dimension=3, pull=pull)
+            for index, pull in enumerate(pulls)
+        ]
+        result = {"events": events}
+
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch("matplotlib.pyplot.close"):
+            destination = Path(temporary) / "diagnostics.png"
+            plot_diagnostics(result, destination, alpha=0.05, regular_timing=False)
+            figure = plt.gcf()
+            histogram_axis = figure.axes[1]
+            labels = histogram_axis.get_legend_handles_labels()[1]
+            self.assertTrue(destination.is_file())
+            self.assertIn("component 0: mean=1.00, var=1.00", labels)
+            self.assertIn("component 1: mean=2.00, var=1.00", labels)
+            self.assertIn("component 2: mean=0.00, var=4.00", labels)
+            self.assertIn("N(0, 1)", labels)
+            reference = next(line for line in histogram_axis.lines
+                             if line.get_label() == "N(0, 1)")
+            np.testing.assert_allclose(
+                reference.get_ydata(),
+                np.exp(-0.5 * reference.get_xdata()**2) / np.sqrt(2 * np.pi),
+            )
+            plt.close("all")
 
     def test_participant_gate_is_called_for_each_dimension(self):
         data = generate_data(2, "nominal", duration_s=0.2)
         case = ExperimentCase("gated", FilterConfig(), "nominal", participant_gate=True)
-        with patch.object(exercise_policies, "innovation_threshold", side_effect=lambda m, alpha: chi2.ppf(1 - alpha, m)) as policy:
+        with patch.object(exercise_policies, "predicted_residual_threshold", side_effect=lambda m, alpha: chi2.ppf(1 - alpha, m)) as policy:
             result = run_experiment(data, case)
         self.assertEqual({call.args[0] for call in policy.call_args_list}, {1, 2, 3})
         for event in result["events"]:
@@ -133,24 +238,24 @@ class ExperimentTests(unittest.TestCase):
     def test_rejected_measurement_remains_in_diagnostic_history(self):
         data = generate_data(2, "nominal", duration_s=0.2)
         data.measured_position[0] = 20.0
-        case = ExperimentCase("gated", FilterConfig(nis_gate=0.1), "nominal")
+        case = ExperimentCase("gated", FilterConfig(chi2_gate=0.1), "nominal")
         result = run_experiment(data, case)
         event = result["events"][0]
         self.assertFalse(event["accepted"])
         self.assertEqual(event["sensor"], "position")
-        self.assertGreater(event["nis"], event["threshold"])
-        np.testing.assert_allclose(event["measurement"] - event["predicted_measurement"], event["innovation"])
-        np.testing.assert_allclose(event["pull"] @ event["pull"], event["nis"])
+        self.assertGreater(event["chi2"], event["threshold"])
+        np.testing.assert_allclose(event["measurement"] - event["predicted_measurement"], event["predicted_residual"])
+        np.testing.assert_allclose(event["pull"] @ event["pull"], event["chi2"])
 
     def test_rejected_updates_leave_state_and_covariance_unchanged(self):
-        estimator = PositionVelocityKalmanFilter(FilterConfig(nis_gate=0.01))
+        estimator = PositionVelocityKalmanFilter(FilterConfig(chi2_gate=0.01))
         for update, measurement in ((estimator.update_position, np.ones(3) * 10),
                                     (estimator.update_flow_velocity, np.ones(2) * 10),
                                     (estimator.update_range, 10.0)):
-            before_x, before_p = estimator.x.copy(), estimator.p.copy()
+            before_x, before_p = estimator.x.copy(), estimator.C.copy()
             self.assertFalse(update(measurement))
             np.testing.assert_array_equal(estimator.x, before_x)
-            np.testing.assert_array_equal(estimator.p, before_p)
+            np.testing.assert_array_equal(estimator.C, before_p)
 
     def test_full_and_dropout_runs_match_before_dropout(self):
         data = generate_data(4, "nominal")
@@ -221,9 +326,9 @@ class ExperimentTests(unittest.TestCase):
 
     def test_policy_checks_are_separate_and_fail_for_unfinished_starters(self):
         # Deliberately unfinished participant functions are not failing unit tests.
-        with patch.object(exercise_policies, "innovation_threshold", return_value=None):
+        with patch.object(exercise_policies, "predicted_residual_threshold", return_value=None):
             self.assertTrue(check_policies("E4"))
-        with patch.object(exercise_policies, "innovation_threshold", side_effect=lambda m, alpha: chi2.ppf(1 - alpha, m)):
+        with patch.object(exercise_policies, "predicted_residual_threshold", side_effect=lambda m, alpha: chi2.ppf(1 - alpha, m)):
             self.assertEqual(check_policies("E4"), [])
         with patch.object(exercise_policies, "stationary_update_allowed", return_value=False):
             self.assertTrue(check_policies("E5"))
@@ -244,12 +349,43 @@ class ExperimentTests(unittest.TestCase):
             self.assertTrue((output / "baseline/seed-000/diagnostics.png").is_file())
             with (output / "baseline/seed-000/updates.csv").open() as stream:
                 row = next(csv.DictReader(stream))
-                self.assertIn("S_22", row)
+                self.assertIn("R_predicted_22", row)
+                covariance_columns = [name for name in row if name.startswith("R_predicted_")]
+                self.assertEqual(len(covariance_columns), 9)
+                guide = Path(__file__).with_name("README.md").read_text(encoding="utf-8")
+                for name in (covariance_columns[0], covariance_columns[-1]):
+                    self.assertIn(f"`{name}`", guide)
                 self.assertIn("measurement_0", row)
+                residual = np.array([float(row[f"predicted_residual_{axis}"]) for axis in range(3)])
+                R = np.array([[float(row[f"R_predicted_{axis}{column}"])
+                               for column in range(3)] for axis in range(3)])
+                self.assertAlmostEqual(float(row["chi2"]), float(residual @ np.linalg.solve(R, residual)))
+                old_term = "inno" + "vation"
+                self.assertFalse(any(old_term in name for name in row))
             before = (output / "settings.json").read_bytes()
             with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 main(["--output", str(output)])
             self.assertEqual(before, (output / "settings.json").read_bytes())
+
+    def test_documented_dropout_constraints_match_both_data_routes(self):
+        data = generate_data(0, "nominal", duration_s=12.2)
+        np.testing.assert_allclose(np.diff(data.time), .02)
+        for sensor, expected_rate in (("position", 10), ("flow", 25), ("range", 10)):
+            times = [time for sample, time in enumerate(data.time)
+                     if sensor_available(sensor, sample, float(time), (), 0)]
+            np.testing.assert_allclose(np.diff(times), 1 / expected_rate)
+        case = ExperimentCase("gap", FilterConfig(), "dropout", dropout_s=3.)
+        simulated = run_experiment(data, case)
+        sensors_in_gap = {event["sensor"] for event in simulated["events"]
+                          if 7.1 < event["time_s"] < 9.9}
+        self.assertEqual(sensors_in_gap, {"flow", "range"})
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            export_prepared(data, ExperimentCase("input", FilterConfig(), "nominal"), output, 0)
+            recorded_data = load_prepared_data(output / "prepared.csv", output / "recording.json", "nominal")
+            recorded = run_experiment(recorded_data, case)
+        self.assertEqual({event["sensor"] for event in recorded["events"]}, {"position"})
+        self.assertFalse(any(7.1 < event["time_s"] < 9.9 for event in recorded["events"]))
 
     def test_recording_uses_only_available_position_without_claiming_truth(self):
         with tempfile.TemporaryDirectory() as temporary:

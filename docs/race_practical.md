@@ -173,7 +173,7 @@ fallback if a candidate lacks the evidence needed for hardware approval.
    tests, not a coupled race simulation.
 2. Summarize maximum/[RMS](glossary.md#rms-and-rmse) tracking error, saturation and failures from those runs,
    drawing all available trajectories for the compared conditions. Distinguish
-   uncertainty/innovation evidence from closed-loop tracking evidence. Do not
+   uncertainty/predicted residual evidence from closed-loop tracking evidence. Do not
    infer performance of a changed racing line from an unchanged reference.
 3. Review R3's planned trajectories and full-path limits, aperture budgets and
    ordering for both strategies. Run the supplied course dry-run interface
