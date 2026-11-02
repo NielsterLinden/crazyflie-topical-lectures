@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Validate Topical Lecture imports, configuration, and optional Crazyradio access."""
+"""Validate Topical Lecture imports and optional Crazyradio access."""
 
 from __future__ import annotations
 
 import argparse
 import importlib
 import importlib.metadata
-import os
 import shutil
 import subprocess
 import sys
@@ -35,18 +34,6 @@ def check_imports() -> bool:
             ok = False
             print(f"[FAIL] {distribution}: {exc}")
     return ok
-
-
-def check_uri() -> bool:
-    uri = os.environ.get("CF_URI")
-    if not uri:
-        print("[INFO] CF_URI is unset; copy tl-config.env.example to tl-config.env")
-        return True
-    if not uri.startswith("radio://"):
-        print(f"[FAIL] CF_URI is not a radio URI: {uri}")
-        return False
-    print(f"[OK] CF_URI={uri}")
-    return True
 
 
 def check_radio() -> bool:
@@ -100,7 +87,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    ok = check_imports() and check_uri()
+    ok = check_imports()
     if args.radio:
         ok = check_radio() and ok
     if args.docker:

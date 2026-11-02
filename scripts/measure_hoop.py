@@ -282,7 +282,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--uri",
         default=os.getenv("CF_URI"),
-        help="Crazyflie radio URI; defaults to CF_URI.",
+        help="radio address supplied by the notebook's Connect cell",
     )
     parser.add_argument("--name", default="hoop-1", help="Hoop name in race configuration.")
     parser.add_argument(
@@ -314,7 +314,7 @@ def parse_args() -> argparse.Namespace:
     )
     args = parser.parse_args()
     if not args.uri:
-        parser.error("set CF_URI or pass --uri for the assigned drone")
+        parser.error("use the survey command printed by the notebook after Connect")
     if args.log_period_ms <= 0 or args.sample_spacing <= 0.0:
         parser.error("log period and sample spacing must be positive")
     return args

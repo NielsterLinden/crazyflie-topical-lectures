@@ -127,7 +127,7 @@ def capture_live(output, uri, *, duration_s=60, ready_for_motor_stop=False,
         raise ValueError("Confirm the drone is on a stable surface, clear of propellers, "
                          "and other radio clients are closed before engaging the firmware stop.")
     if not isinstance(uri, str) or not uri.strip():
-        raise ValueError("Set the team's assigned URI explicitly or through CF_URI.")
+        raise ValueError("Run the notebook's Connect cell and pass its returned URI.")
     if not math.isfinite(duration_s) or not 1 <= duration_s <= 120:
         raise ValueError("Notebook capture duration must be between 1 and 120 seconds.")
     if any(not math.isfinite(value) or value <= 0

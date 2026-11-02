@@ -224,9 +224,7 @@ These commands check three different things:
 1. The first prints the Python interpreter path. It should be inside this
    project's `.venv` folder.
 2. `python scripts/validate_environment.py` checks package imports and versions,
-   and ends with `Environment ready.` if the checks pass. Its informational
-   message `CF_URI is unset` is normal before radio assignment, which is done
-   below under [Team radio configuration](#team-radio-configuration).
+   and ends with `Environment ready.` if the checks pass.
 3. Running `cfclient` opens its window and checks that the graphical interface
    starts correctly. Leave it disconnected from the drone, then close the window
    before continuing.
@@ -357,49 +355,28 @@ follow Bitcraze's
 
 ## Team radio configuration
 
-Organizers provide each team with a unique drone [radio URI](glossary.md#radio-uri)
-and identity. Assignment records are not part of the public package.
+Organizers prepare each drone's radio settings and sticker label. Use that
+`LABEL` in the connection notebook.
 
-Each team copies the example and enters the assigned URI:
-
-```bash
-cp tl-config.env.example tl-config.env
-```
-
-On macOS/Linux, load it before an exercise:
-
-```bash
-set -a
-source tl-config.env
-set +a
-```
-
-The channel, data rate, and address in `CF_URI` must match the persistent radio
-configuration programmed into that team's Crazyflie.
-
-In Windows PowerShell, set the same values from your edited `tl-config.env`
-explicitly (the Bash `source` command does not work in PowerShell):
-
-```powershell
-$env:CF_URI = 'radio://0/80/2M/E7E7E7E701'
-$env:TEAM_NAME = 'team-01'
-```
-
-Replace these examples with your assigned values. Environment variables must be
-set again in each new terminal; copying the file alone does not load them.
+The drones are programmed before the lectures and identified by their sticker
+labels. Start with the [Day 1 connection notebook](../code/day1/drone_01_connect.ipynb),
+entering your drone's `LABEL`. Its discovery, status and LED checks establish
+which drone you are using. Days 2 and 3 use the same label convention in their
+**Connect** cells. Keep that selection for recording, surveying and flight;
+the notebooks supply the discovered [radio URI](glossary.md#radio-uri) to the
+tools that need it.
 
 After [USB setup](#usb-setup), plug in the radio and run:
 
 ```bash
 python scripts/validate_environment.py --radio
-cfclient
 ```
 
-**Expected:** the validator lists the radio's serial number. In cfclient, connect
-to the assigned drone following [B2's connection steps](day_1_baseline_checks.md#b2-cfclient-connection-firmware-and-controller-identity),
-with motors stopped. Confirm the drone identity and live telemetry. Close
-cfclient before any other script uses that radio. A radio-discovery check detects
-the USB dongle; the cfclient connection checks the link to the drone.
+**Expected:** the validator lists the radio's serial number. Close cfclient
+before using a connection notebook. The validator detects the USB dongle;
+the notebook checks the link and drone identity. For later cfclient checks,
+reuse that discovered address as described in
+[B2](day_1_baseline_checks.md#b2-cfclient-connection-firmware-and-controller-identity).
 
 ## Troubleshooting
 

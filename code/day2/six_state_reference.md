@@ -139,10 +139,11 @@ It uses the same estimation baseline, with gate geometry and speed decisions
 added in the Day 3 front end. The recommended speed does not change prescribed
 truth motion, so it cannot establish lap-time improvements.
 
-For an additional cascaded-estimation study, use `python -m day2.live` with the assigned URI, `--prepare-for-handling`
-and a new output directory, or `python -m day2.replay` with prepared input and
-metadata. The [six-state recording guide](../../docs/sensor_recording_contract.md#live-six-state-session-and-replay-fallback)
-provides commands and prepared-data examples. Neither commands motors.
+For an additional cascaded-estimation study, use the notebook's six-state capture
+helper with the URI returned by **Connect**, or `python -m day2.replay` with
+prepared input and metadata. The
+[six-state recording guide](../../docs/sensor_recording_contract.md#live-six-state-session-and-replay-fallback)
+provides capture details and prepared-data examples. Neither commands motors.
 Their diagnostic CSVs store position predicted residuals in
 `predicted_residual_x_m`, `predicted_residual_y_m` and `predicted_residual_z_m`,
 with blank fields when no position observation arrives.

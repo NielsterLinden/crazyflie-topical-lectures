@@ -110,16 +110,17 @@ python -m andreas.practical --mode replay --recording ../examples/day1-state.syn
 ```
 
 These example data were generated in software. For experimental evidence,
-use a supplied real recording or a motor-disabled capture after the team's checks:
+use a supplied real recording or a motor-disabled capture after the team's checks.
+For the optional CLI capture, first complete **Connect** in a Day 2 notebook
+with your sticker `LABEL`. On the same powered session, print this command in
+that notebook and run it from a terminal in `code/`:
 
-```text
-python -m andreas.practical --mode handcheck --duration 20 --output ../day1/handcheck --no-show
+```python
+print(f"python -m andreas.practical --mode handcheck --uri {uri} --duration 20 --output ../day1/handcheck --no-show")
 ```
 
-Set the assigned `CF_URI` first (or supply `--uri`). With the drone on a stable
-surface and hands clear, connect cfclient, open **Parameters > stabilizer > stop**,
-set it to `1`, press Enter and check the displayed value and stationary propellers.
-Disconnect and close cfclient without rebooting. Keep clear of fitted propellers;
+The command carries the address already discovered and checked by **Connect**;
+its verified firmware stop remains engaged. Keep clear of fitted propellers;
 see the [firmware-stop procedure](sensor_recording_contract.md#prepare-the-drone-for-hand-held-recording).
 The command asks for
 `RECORD ONLY`, logs position/velocity and motor-status blocks, and computes commands

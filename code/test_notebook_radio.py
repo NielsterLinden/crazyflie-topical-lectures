@@ -260,11 +260,11 @@ motor_stop.engage_motor_stop = stop
         uri = 'radio://0/51/2M/E7E7E7E707'
         output = io.StringIO()
         with redirect_stdout(output):
-            exec(cells['day3-survey-command'], {'uri': uri,
-                                               'template': {'uri_environment_variable': 'TEAM_URI'}})
-        self.assertIn('--uri ' + uri, output.getvalue())
-        self.assertIn("export TEAM_URI='" + uri + "'", output.getvalue())
-        self.assertIn('$env:TEAM_URI = "' + uri + '"', output.getvalue())
+            exec(cells['day3-survey-command'], {'uri': uri})
+        self.assertEqual(output.getvalue().count('--uri ' + uri), 2)
+        self.assertIn('python flight_runner.py --config CHECKED_COURSE.json --fly', output.getvalue())
+        self.assertNotIn('export ', output.getvalue())
+        self.assertNotIn('$env:', output.getvalue())
         self.assertNotIn('/80/', output.getvalue())
 
     def test_connection_instructions_describe_live_connection_only(self):

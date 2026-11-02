@@ -166,7 +166,7 @@ def main(argv=None):
     parser.add_argument('--capture-worker', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if not args.uri or not args.prepare_for_handling:
-        parser.error('Set CF_URI/--uri; place the drone on a stable surface, clear of propellers, close other radio clients, then confirm --prepare-for-handling.')
+        parser.error('Use the notebook capture cell, or pass its discovered --uri; place the drone on a stable surface, clear of propellers, close other radio clients, then confirm --prepare-for-handling.')
     if not math.isfinite(args.duration) or not 18 <= args.duration <= 30:
         parser.error('Capture duration must be between 18 and 30 seconds.')
     try:

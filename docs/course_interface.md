@@ -41,7 +41,7 @@ For the course interface below, the supplied launcher exposes:
 
 ```text
 python flight_runner.py --config TEAM_COURSE.json --dry-run --plot
-python flight_runner.py --config CHECKED_COURSE.json --fly --log UNIQUE_RUN.csv
+python flight_runner.py --config CHECKED_COURSE.json --fly --uri DISCOVERED_URI --log UNIQUE_RUN.csv
 ```
 
 Run those commands in the shared flight-tool directory/environment, not
@@ -51,9 +51,10 @@ The first command does not connect to a radio. The team's pilot uses the second
 after the preflight checks and second-member cross-check pass, with the stop
 operator ready. The team then explicitly enables the checked course; the launcher
 requests the exact course name as confirmation. Never bypass confirmation.
-The operator exports the assigned URI into the environment variable named by
-`uri_environment_variable`; merely setting a non-exported shell variable is
-insufficient. Only one radio client controls a drone at a time.
+Use the flight command printed by Day 3's **Connect** workflow: its `--uri`
+argument carries the address discovered from `LABEL`. Replace the course and
+log filenames with those for the checked attempt; keep that discovered address.
+Only one radio client controls a drone at a time.
 
 **Before R2 acquisition**, try the example JSON with the shared dry-run launcher;
 teams can help each other check its structure. Fix format mismatches before
@@ -74,7 +75,7 @@ geometry ID and the physical point used for drone position in the survey record.
 | --- | --- |
 | `course_name` | Nonempty course identifier, also used for interactive confirmation. |
 | `enabled_for_flight` | JSON boolean; keep `false` until the team's preflight checks pass and the pilot and stop operator confirm readiness. Record that decision before enabling the course. |
-| `uri_environment_variable` | Name of exported radio URI variable, normally `CF_URI`. No drone address is embedded in the example. |
+| `uri_environment_variable` | Retained for compatibility with existing runner configurations. The notebook's command supplies the discovered address directly with `--uri`. |
 | `yaw_deg` | Fixed world-frame heading reference in degrees, held throughout the course. |
 | `start`, `finish` | Airborne trajectory endpoints; the runner checks compatibility between the resting location and takeoff start. |
 | `hoops` | Nonempty ordered list of crossing events; repeated passages through a physical gate each have their own entry. |

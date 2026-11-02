@@ -6,15 +6,17 @@ All hand-held acquisition uses the [firmware-stop preparation](#prepare-the-dron
 
 ## Vertical sensor recordings for E3-E7
 
-Use the notebook's bounded capture cell or, from `code/`:
+Use **Connect** and the bounded capture cell in
+[03_height_velocity.ipynb](../code/day2/03_height_velocity.ipynb). Select your
+sticker `LABEL` there; capture reuses the returned URI. The underlying
+`day2.vertical_live` worker sets and verifies `stabilizer.stop=1` and monitors
+supervisor lock and zero motor outputs. Wait for STOP VERIFIED, keep level and
+stationary for five seconds, then wait for Calibration check passed before gentle
+up/down motion over the same fixed flat floor. Hold still again by 15 seconds;
+capture ends at 20 seconds. The stop remains engaged. Put the drone down and
+power-cycle before flight/preflight checks.
 
-```text
-python -m day2.vertical_live --output day2/data/vertical-training --prepare-for-handling
-```
-
-Set the assigned `CF_URI` or add `--uri`. The helper sets and verifies `stabilizer.stop=1` and monitors supervisor lock and zero motor outputs. Wait for STOP VERIFIED, keep level and stationary for five seconds, then wait for Calibration check passed before gentle up/down motion over the same fixed flat floor. Hold still again by 15 seconds; capture ends at 20 seconds. The stop remains engaged. Put the drone down and power-cycle before flight/preflight checks.
-
-Both the notebook and CLI stop the capture worker after the requested duration
+The notebook stops the capture worker after the requested duration
 plus 30 seconds (50 seconds by default), including connection and parameter
 download. A timeout or interruption preserves partial files for diagnosis;
 incomplete recordings cannot be selected for analysis. Put the drone down and
@@ -59,15 +61,15 @@ truth-based RMSE and coverage are available with simulation.
 
 ## Prepare the drone for hand-held recording
 
-For the Day 2 notebook, `day2.vertical_live`, `day2.live` or `scripts/measure_hoop.py`:
+For notebook capture or a survey command printed by the notebook:
 
 1. Put the drone on a stable surface, with hands and loose objects clear of its
    propellers. Close cfclient and any other drone-control scripts. Leave the
    drone on the surface until verification completes.
-2. Select your team's assigned URI. In the notebook set
-   `ready_for_motor_stop = True` after step 1, then opt into live capture.
-   With `day2.live`, use `--prepare-for-handling`. The survey script asks you
-   to type `STOP AND SURVEY` before connecting.
+2. Use the notebook's **Connect** cell with your sticker `LABEL`, and confirm
+   the blinking drone. Enable the capture switch for the chosen recording;
+   the tool reuses the selected address. For surveying, run the printed command
+   and confirm `STOP AND SURVEY`.
 3. The tool sets `stabilizer.stop=1`, then requires a parameter readback of `1`,
    a fresh supervisor status showing locked and neither armed nor able to fly,
    and four zero motor outputs. Verification has a five-second timeout after
@@ -87,15 +89,11 @@ before another recording. There is no need to save this parameter persistently.
 See Bitcraze's [stop parameter implementation](https://github.com/bitcraze/crazyflie-firmware/blob/master/src/modules/src/supervisor.c)
 and [emergency-stop behaviour](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/functional-areas/supervisor/#emergency-stops).
 
-**When logging directly in cfclient, or using the Day 1 handcheck:** on the
-surface, connect cfclient to the assigned URI. Open **Parameters**, expand
-**stabilizer**, edit **stop** to `1`, press Enter, check the displayed value is
-`1`, and visually check stationary propellers. If the value cannot be set, use
-supplied data. For cfclient recordings, stay connected and leave that setting
-engaged. For Day 1's separate script, disconnect and close cfclient without
-rebooting, then run the documented handcheck. The Day 1 script monitors motor
-outputs but does not itself engage or verify the firmware lock. Power-cycle on
-the surface and repeat preflight checks before returning to flight in either case.
+**For the optional cfclient logging route:** first complete **Connect** in the
+Day 2 notebook. Its connection closes with the firmware stop engaged. Without
+rebooting, select that same discovered URI in cfclient and leave the stop engaged.
+Check four zero motor outputs before recording. Power-cycle on the surface and
+repeat preflight checks before returning to flight.
 
 ## Additional sensor and six-state recording studies
 
@@ -216,7 +214,8 @@ Do not assert exact acquisition-time or delay compensation from these CSVs alone
 ### Live capture using the supplied helper
 
 The [six-state examples](../code/day2/six_state_reference.md)
-use `python -m day2.live` with the assigned URI and `--prepare-for-handling`.
+use the capture helper in the Day 2 notebooks with the URI already returned by
+**Connect**.
 The helper reads three separate 50 ms log blocks: acceleration plus onboard
 position (six floats, 24 bytes), [quaternion](glossary.md#quaternion-and-so3)
 (16 bytes), and motor outputs

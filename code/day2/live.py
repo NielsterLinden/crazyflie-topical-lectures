@@ -332,7 +332,7 @@ def main(argv=None):
     parser.add_argument("--no-show", action="store_true", help="Save outputs without a live GUI")
     args = parser.parse_args(argv)
     if not args.uri or not args.prepare_for_handling:
-        parser.error("set CF_URI or --uri; place the drone on a stable surface, keep clear of propellers, and confirm --prepare-for-handling")
+        parser.error("use the notebook capture helper with its discovered URI; place the drone on a stable surface, keep clear of propellers, and confirm --prepare-for-handling")
     if not math.isfinite(args.duration) or not 1 <= args.duration <= 600:
         parser.error("--duration must be between 1 and 600 seconds")
     if any(not math.isfinite(value) or value <= 0 for value in (args.position_std, args.comparison_position_std)):

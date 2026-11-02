@@ -42,19 +42,13 @@ not the safety checks. Agree the final shared course before qualification.
 
 ## Commands
 
-From the project root with the native environment active, set the assigned
-`CF_URI` as described in [software setup](software_setup.md#team-radio-configuration).
-If needed, add `--uri radio://...` with that exact assigned address. The script
-refuses to connect when neither is set; it does not pick a default drone.
-These single-line commands work in Bash and PowerShell:
+Use **Connect** in the [Day 3 notebook](../code/day3/day3_race.ipynb) with your
+sticker `LABEL`, then run its printed survey command from a project-root terminal
+with the environment active. The command already includes the discovered URI.
+Use `--shape circle` for a hoop or `--shape rectangle` for a rectangular gate;
+change the name and output file for each gate.
 
-```text
-python scripts/measure_hoop.py --shape circle --name hoop-1 --output survey/hoop-1.json
-python scripts/measure_hoop.py --shape rectangle --name gate-2 --output survey/gate-2.json
-```
-
-Use a different name/output for each physical gate. Do not run both commands for
-the same gate unless comparing fits. Existing files are protected unless `--force`
+Existing files are protected unless `--force`
 is supplied. Default sample spacing is 0.02 m; `--sample-spacing 0.01` retains a
 denser trace. The trace starts and stops at the laptop's Enter prompts. Move slowly
 and watch the physical drone. The script logs position and sends no arming or flight commands;

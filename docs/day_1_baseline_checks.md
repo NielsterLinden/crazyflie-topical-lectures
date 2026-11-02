@@ -44,9 +44,10 @@ mass-setting applicability, original/current/stored settings, and reboot readbac
 
 ## B2: cfclient connection, firmware and controller identity
 
-1. Launch `cfclient` from the activated native environment. Select the assigned
-   radio address, click **Scan**, select the assigned URI, then **Connect**.
-   Match the connected drone to the team record; do not use a neighbour's URI.
+1. Use your sticker `LABEL` in the Day 1 connection notebook and confirm the
+   blinking drone. After its connection closes, launch `cfclient` from the
+   activated environment. Click **Scan**, select the exact URI shown by the
+   notebook, then **Connect**. This reuses the checked drone identity.
 2. Enable **Console**, **Parameters**, **[Log TOC](glossary.md#telemetry-and-log-toc)**, **Log Blocks**, **Plotter**,
    **Flight Control**, and **Lighthouse Positioning** as needed through
    **View > Tabs**. Names/capitalization may differ slightly between releases.
