@@ -7,7 +7,6 @@ import json
 import math
 import os
 from pathlib import Path
-import queue
 import subprocess
 import sys
 import threading
@@ -16,18 +15,9 @@ from typing import Sequence
 
 import numpy as np
 
-from race_common.motor_stop import engage_motor_stop
-
-
-def drone_uri(label, channel=80, rate="2M"):
-    """Use the Day 1 sticker convention: 2 -> E7E7E7E702, A -> E7E7E7E70A."""
-    try:
-        address_byte = label if isinstance(label, int) else int(str(label).strip(), 16)
-    except (ValueError, TypeError):
-        raise ValueError('Enter the sticker label, for example 2 or "A".') from None
-    if not 1 <= address_byte <= 255:
-        raise ValueError('The sticker label must be a nonzero address byte.')
-    return f"radio://0/{channel}/{rate}/E7E7E7E7{address_byte:02X}"
+from day1.crazyflie import drone_uri
+from notebook_radio import motor_stopped_connection as stopped_connection
+from notebook_radio import run_worker as _run_capture
 
 
 @contextmanager
@@ -161,18 +151,8 @@ def display_table(rows):
 @contextmanager
 def motor_stopped_connection(uri: str, cache_directory: Path):
     """Connect to a Crazyflie and verify its firmware motor stop before yielding."""
-    import cflib.crtp
-    from cflib.crazyflie import Crazyflie
-    from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
-
-    cflib.crtp.init_drivers()
-    with SyncCrazyflie(
-        uri, cf=Crazyflie(rw_cache=str(cache_directory))
-    ) as connection:
-        connection.wait_for_params()
-        cf = connection.cf
-        stop_check = engage_motor_stop(cf)
-        yield cf, stop_check
+    with stopped_connection(uri, cache_directory) as (connection, stop_check):
+        yield connection.cf, stop_check
 
 
 def add_log_config(cf, name: str, channels: Sequence[str], period_ms: int,
@@ -306,39 +286,6 @@ def capture(uri, output, channels, *, duration_s=60, period_ms=20):
         receipt["status"] = "complete"
 
     return destination, state["rows"]
-
-
-def _run_capture(command, *, cwd, env, timeout_s):
-    """Relay progress to the terminal or notebook; bound the child lifetime."""
-    lines = []
-    messages = queue.Queue()
-    with subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT, text=True, bufsize=1) as process:
-        def read_output():
-            for line in process.stdout:
-                messages.put(line)
-
-        reader = threading.Thread(target=read_output, daemon=True)
-        reader.start()
-        deadline = time.monotonic() + timeout_s
-        try:
-            while process.poll() is None or reader.is_alive() or not messages.empty():
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    raise subprocess.TimeoutExpired(command, timeout_s)
-                try:
-                    line = messages.get(timeout=min(0.1, remaining))
-                except queue.Empty:
-                    continue
-                lines.append(line)
-                print(line, end="", flush=True)
-            return subprocess.CompletedProcess(command, process.returncode, "".join(lines), "")
-        except BaseException:
-            process.kill()
-            process.wait()
-            raise
-        finally:
-            reader.join(timeout=1)
 
 
 def capture_vertical(output, uri, *, ready_for_motor_stop=False, duration_s=20):

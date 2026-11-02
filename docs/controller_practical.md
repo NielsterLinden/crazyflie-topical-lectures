@@ -253,7 +253,7 @@ displace the scheduled first hover.
    The core C7 result is the recorded-data sign/frame comparison and handover notes.
 
 For the scheduled position-loop flight, use the tested sequence and command
-interface in `drone_03_position_loop.ipynb`. Applying the CLI controllers above
+interface in `drone_05_tuning.ipynb`. Applying the CLI controllers above
 needs separate interface checks; their gain conventions differ.
 
 **Deliverable.** Saved replay outputs and sign/frame checks. Note your baseline

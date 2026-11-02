@@ -8,6 +8,9 @@ The notebook is the main route: check shared gates, choose margins from Day 1
 tracking and Day 2 covariance, compare one speed change, then analyse a recording.
 Prefer actual telemetry; the labelled delayed-reference example also works offline.
 Choose a fresh `run_id` for another full session.
+For surveying, set `LABEL` to your drone's sticker label and confirm the blinking
+drone. The notebook verifies the firmware stop and prints the survey command.
+Power-cycle after handling and repeat preflight before flight.
 
 ## Optional command-line route
 

@@ -177,7 +177,7 @@ to one flight establishes a stable controller. This extension needs additional
 analysis time/recordings, rather than being hidden inside C4's 25 minutes.
 
 For the scheduled real-drone experiments, follow
-`code/day1/drone_03_position_loop.ipynb` and its preflight and abort instructions.
+`code/day1/drone_05_tuning.ipynb` and its preflight and abort instructions.
 It provides the flight sequence and controller handover. A continuous command at the
 switch is called a [bumpless handover](glossary.md#bumpless-handover).
 The CLI models above have their own gain conventions; use the gains and

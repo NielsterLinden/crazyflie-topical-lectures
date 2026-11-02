@@ -16,8 +16,8 @@ this format; its polynomial reference is not automatically the runner's path.
 
 ## Flight-tool handover
 
-Day 1's `drone_02_handtest.ipynb` checks a position-to-velocity callback with
-motors stopped. `drone_03_position_loop.ipynb` uses the adjacent `crazyflie.py`
+Day 1's `drone_03_handtest.ipynb` checks a position-to-velocity callback with
+motors stopped. `drone_05_tuning.ipynb` uses the adjacent `crazyflie.py`
 helper for takeoff, hover, the step and landing; onboard velocity/attitude loops
 remain active. The flight helper settles at hover and sets the target to the
 measured position before handing over. Check command continuity at that switch

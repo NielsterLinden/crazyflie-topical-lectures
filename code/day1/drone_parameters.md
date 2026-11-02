@@ -23,7 +23,7 @@ These are not stored anywhere in `module.py`. They are the values a student has 
 * `V_hover`, per-motor throttle that produces `M * g / 2` of thrust. About 0.5 with a per-student range about ±0.01 throttle.
 * `V_left_offset`, residual left and right asymmetry, applied inside the motor mixer. This has a per-student range about ±0.01.
 
-The Crazyflie firmware's outer-loop saturation values (±1 m/s on commanded velocity and ±20° on commanded tilt) are imported as the default `v_max_cmd` and `tilt_max` in the velocity-cascade notebooks. Section 3 of the Richardson et al. paper has the firmware block diagram to match.
+The Crazyflie firmware's outer-loop saturation values (±1 m/s on the velocity setpoint and ±20° on the tilt setpoint) are the default `v_max` and `tilt_max` in the velocity-cascade notebooks. Section 3 of the Richardson et al. paper has the firmware block diagram to match.
 
 ## Where each parameter comes from
 
@@ -40,8 +40,8 @@ The Crazyflie firmware's outer-loop saturation values (±1 m/s on commanded velo
 
 ### From the Crazyflie firmware (paper Section 3, Table 2, Figure 3)
 
-* `v_max_cmd = 1.0` m/s, outer-loop commanded-velocity saturation.
-* `tilt_max = 20°`, commanded-tilt saturation produced by the position-then-velocity cascade.
+* `v_max = 1.0` m/s, the limit on the velocity setpoint of the outer loop.
+* `tilt_max = 20°`, the limit on the tilt setpoint produced by the position-then-velocity cascade.
 
 ### Our own choices, not from the paper
 

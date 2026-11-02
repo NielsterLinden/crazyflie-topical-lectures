@@ -28,7 +28,6 @@ from race_common.hoop_fit import (  # noqa: E402
     fit_circle_3d,
     fit_rectangle_3d,
 )
-from race_common.motor_stop import engage_motor_stop  # noqa: E402
 
 
 class PositionSampler:
@@ -324,24 +323,19 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     # Keep --help and offline geometry tests usable without the radio libraries.
-    import cflib.crtp
-    from cflib.crazyflie import Crazyflie
     from cflib.crazyflie.log import LogConfig
-    from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
+    from notebook_radio import motor_stopped_connection
 
     sampler = PositionSampler(max_gap_s=max(0.5, 3 * args.log_period_ms / 1000))
     log_config = LogConfig(name="Hoop survey", period_in_ms=args.log_period_ms)
     for variable in ("stateEstimate.x", "stateEstimate.y", "stateEstimate.z"):
         log_config.add_variable(variable, "float")
 
-    cflib.crtp.init_drivers()
     print("Place the drone on a stable surface and keep clear of propellers.")
     if input("Type STOP AND SURVEY to engage the firmware stop and connect: ").strip() != "STOP AND SURVEY":
         print("Survey cancelled; no connection made.")
         return 1
-    with SyncCrazyflie(args.uri, cf=Crazyflie(rw_cache="./cache")) as scf:
-        scf.wait_for_params()
-        engage_motor_stop(scf.cf)
+    with motor_stopped_connection(args.uri, Path('./cache')) as (scf, _stop_check):
         print("STOP VERIFIED: firmware locked, four motor outputs zero. You may handle the drone.")
         print("Leave the stop engaged; place the drone down and power-cycle before flight/preflight checks.")
         scf.cf.log.add_config(log_config)

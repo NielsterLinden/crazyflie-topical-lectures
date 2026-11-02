@@ -13,7 +13,8 @@ import subprocess
 import sys
 import time
 
-from race_common.motor_stop import ACTIVE_BITS, LOCKED_BIT, MOTOR_CHANNELS, engage_motor_stop
+from race_common.motor_stop import ACTIVE_BITS, LOCKED_BIT, MOTOR_CHANNELS
+from notebook_radio import motor_stopped_connection
 from .vertical import RAW_COLUMNS, calibrate, load_raw
 
 
@@ -36,10 +37,7 @@ def collect(output, uri, duration_s=20):
         raise ValueError("Provide the assigned URI and an 18-30 second duration.")
     # Offline work and notebook import require no USB/radio libraries.
     import numpy as np
-    import cflib.crtp
-    from cflib.crazyflie import Crazyflie
     from cflib.crazyflie.log import LogConfig
-    from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
@@ -71,11 +69,9 @@ def collect(output, uri, duration_s=20):
         with (output / 'raw.csv').open('x', newline='', encoding='utf-8') as stream:
             writer = csv.writer(stream)
             writer.writerow(RAW_COLUMNS)
-            cflib.crtp.init_drivers()
-            with SyncCrazyflie(uri, cf=Crazyflie()) as connection:
+            with motor_stopped_connection(uri, output / '.cflib-cache') as (connection, stop_check):
                 cf = connection.cf
-                connection.wait_for_params()
-                metadata['motor_stop_check'] = engage_motor_stop(cf)
+                metadata['motor_stop_check'] = stop_check
                 missing = [name for name in SENSOR_CHANNELS
                            if cf.log.toc.get_element_by_complete_name(name) is None]
                 if missing:

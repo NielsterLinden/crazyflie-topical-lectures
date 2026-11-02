@@ -73,10 +73,7 @@ class RawCaptureTests(unittest.TestCase):
             connection_lost=Callbacks(),
         )
         connection = MagicMock()
-        connection.__enter__.return_value = SimpleNamespace(
-            cf=cf, wait_for_params=Mock()
-        )
-        connection.__exit__.return_value = False
+        connection.cf = cf
         cflib = ModuleType("cflib")
         cflib.crtp = ModuleType("cflib.crtp")
         cflib.crtp.init_drivers = Mock()
@@ -94,8 +91,8 @@ class RawCaptureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory) / "imu.csv"
             with patch.dict(sys.modules, modules), patch(
-                "day2.notebook_tools.engage_motor_stop", return_value={"verified": True}
-            ), patch("day2.notebook_tools.time.monotonic", side_effect=[0, 0, 0, 1]):
+                "notebook_radio.engage_motor_stop", return_value={"verified": True}
+            ), patch("notebook_radio.crazyflie.init"), patch("day2.notebook_tools.time.monotonic", side_effect=[0, 0, 0, 1]):
                 path, count = capture(
                     "radio://0/80/2M/TEST", destination, IMU_CHANNELS, duration_s=.01
                 )

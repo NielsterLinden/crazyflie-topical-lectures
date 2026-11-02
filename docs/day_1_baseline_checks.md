@@ -162,7 +162,7 @@ The flight types use different limits:
 | Day 1 notebook experiments and cfclient baseline hover | The notebook specifies **3.5 V at rest** as the lower limit; below this, recharge or use another checked pack. Use a full battery for tuning comparisons. | The notebook control loop lands **below 3.1 V under load**. For the cfclient hover alternative, the operator monitors voltage and lands at that threshold. |
 | Race | Start at **4.10 V or above**; below this, recharge or use another checked pack. | The operator monitors voltage and begins a controlled landing at **3.50 V or below under load**, or at the first low-battery warning. |
 
-The Day 1 values follow `drone_03_position_loop.ipynb` and its existing helper.
+The Day 1 values follow `drone_04_identification.ipynb` and its existing helper.
 Its automatic voltage check runs in the control loop after takeoff and settling;
 power telemetry is recorded for later analysis. Follow the notebook's abort
 instructions for weak lift, unusual sag, excessive drift/tilt or unstable flight.

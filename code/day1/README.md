@@ -1,6 +1,6 @@
 # Day 1: feedback control, from the simulator to the real drone
 
-Andreas Freise, 28.10.2026
+Andreas Freise, 01.11.2026
 
 Hands-on material for the first day of the topical lectures. In the morning
 you learn the basics of feedback control by flying a simulated drone in
@@ -15,70 +15,96 @@ notebooks.
 ## Schedule
 
 The day in [Indico event 8196](https://indico.nikhef.nl/event/8196/),
-3 November 2026, and the notebooks that belong to each block.
+3 November 2026, and the notebooks of each block. The times are a
+guideline; groups advance at their own pace.
 
-* 10:00 to 10:15. Introduction: goals of the three days, the drone and its sensors.
-* 10:15 to 10:45. Software check. Everyone runs `00_jupyter_example`
-  top to bottom and the first cells of `2Dsim_01_keyboard_flying` (this opens a
-  separate plot window and needs the Qt backend from the full installation).
-  One person per group connects to the group's drone with cfclient and then
-  runs `python crazyflie.py status` in a terminal.
+* 10:00 to 10:15. Introduction: goals of the three days.
+* 10:15 to 10:45. Software check, see below.
 * 10:45 to 11:30. Lecture: feedback, stability, PID controllers.
-* 11:30 to 12:30. Simulation, block 1: `2Dsim_01_keyboard_flying` (10 min, flying
-  without a controller is hard) and `2Dsim_02_system_identification` (measure
-  the motor offset and the hover voltage of your drone; the sections marked
-  *optional* can be skipped).
+* 11:30 to 12:30. Simulation, block 1, see below.
 * 12:30 to 13:30. Lunch.
-* 13:30 to 15:00. Simulation, block 2: `2Dsim_03_basic_control` (tilt loop,
-  vertical loop with and without feedforward, the integrator, then the
-  cascade for horizontal position; the last section is optional) and
-  `2Dsim_04_velocity_loop` (a velocity loop between position and tilt, with
-  a speed limit in physical units). Part 4 is the bridge to the
-  afternoon: its position loop produces a velocity command, and that is
-  exactly what the real drone accepts by radio.
-  Groups that finish early: `2Dsim_05_race` (the race, flown by a
-  preprogrammed sequence of setpoints, with an inline video) or
-  `extra_2Dsim_01_race_interactive` (the same race flown with the keyboard,
-  Qt backend).
-* 15:00 to 15:15. Break.
-* 15:15 to 16:30. The real drone, see below.
-* 16:30 to 17:00. Results and discussion.
+* 13:30 to 14:30. Simulation, block 2, see below.
+* 14:30 to 14:45. Introduction to the Crazyflie hardware.
+* 14:45 to 16:00. The real drone, see below.
+* 16:00 to 16:15. Break.
+* 16:15 to 17:00. The real drone, continued.
 
-## The real drone, 15:15 to 16:30
+The figure and the table of each group are shown on one of the following
+days, or at the end of the afternoon by groups that are done early.
 
-Each group has one drone, but four people. One group member connects to the
-drone and runs the flight notebooks, one watches the drone and the abort key
-during flights, and the others work on the prediction and the analysis in
-notebook `drone_04_analysis`, which needs no drone. Swap roles between runs.
+## The software check
 
-1. 15:15 to 15:40, all groups at their desks: `drone_01_connect`, then
-   `drone_02_handtest`. List the drones in range, pick yours by the label
-   on its sticker, see it blink and read its status. Then the measurement
-   protocol with the motors off: the drone still on the desk, then moved by
-   hand forward and to the left. It gives the direction of the axes and the
-   noise and the drift of the position estimate, saved to `data/drone_id.csv`.
-   Part 3 refuses to fly without that file.
-2. From 15:40, groups in turn in the flying area: `drone_03_position_loop`.
-   First the identification flight under the firmware's controllers, a
-   velocity command step whose response gives the time constant `tau` of the
-   velocity loop. Then the design: `omega0` and `zeta` chosen, gains from
-   `tau`. Then the flight with the designed gains: take-off and hover under
-   the onboard controller, handover, 4 s hold, a 0.5 m step, 8 s hold,
-   landing. One run takes about 20 s in the air and three minutes with setup
-   and saving. Save every run under its own label, then tune: faster, more
-   or less damping, both axes, each against the prediction of the model.
-3. `drone_04_analysis`, part B: the measured step responses of your runs next
-   to the two predictions (the first order model with the measured `tau` and
-   the simulator of the morning), rise time, overshoot, settling, the hold
-   phase next to the noise and drift of part 2, battery and motor headroom.
-   The reference recordings under `data/reference/` serve while your pilot is
-   still flying.
+Everyone runs `00_jupyter_example` top to bottom and the first cells of
+`2Dsim_01_keyboard_flying`, which opens a separate plot window and needs the
+Qt backend of the full installation. One person per group connects to the
+group's drone with the first cells of `drone_01_connect`: the drones in
+range, a blink, the status.
+
+## The simulator
+
+Block 1: `2Dsim_01_keyboard_flying` (10 minutes), flying without a controller
+is hard; it opens a separate plot window and needs the Qt backend of the full
+installation. `2Dsim_02_system_identification`: measure the motor offset and
+the hover voltage of your drone; the sections marked *optional* can be
+skipped.
+
+Block 2: `2Dsim_03_basic_control`: the tilt loop, the vertical loop with and
+without feedforward, the integrator, then the cascade for the horizontal
+position; the last section is optional. `2Dsim_04_velocity_loop`: a velocity
+loop between position and tilt, with a speed limit in physical units. It is
+the bridge to the afternoon: its position loop produces a feedback signal, a
+velocity, and that is exactly what the real drone accepts by radio. Groups
+that finish early: `2Dsim_05_race`, the race flown by a preprogrammed
+sequence of setpoints, with an inline video, or
+`extra_2Dsim_01_race_interactive`, the same race flown with the keyboard (Qt
+backend).
+
+## The real drone
+
+Each group has one drone, four people and a laptop each with all notebooks,
+and the flying area is large enough for all groups to fly at the same time.
+One laptop is connected to the drone and runs the drone notebooks; one
+person watches the drone and the abort key during flights; the other two
+work on their own laptops with the analysis notebooks. The group decides who
+does what, and swaps between runs.
+
+The drone notebooks, in order:
+
+1. `drone_01_connect`: the drones in range, yours by the label on its
+   sticker, a blink, the status, the height sensor. Done at the desk, as in
+   the software check of the morning.
+2. `drone_02_firmware_flight`: the first flights, under the drone's own
+   controllers: a path from Python, forward and back, then a square; saved
+   like all flights.
+3. `drone_03_handtest`: motors off. The code of our position loop, the
+   measurement protocol by hand for the axes and the noise of the estimate,
+   then the sign of the gains from the feedback of the code while the drone
+   is moved by hand.
+4. `drone_04_identification`: one flight, a velocity setpoint step. The
+   response time `tau` and the dead time of the velocity loop, and the noise
+   bounds from the hover: the parameters of the drone, recorded.
+5. `drone_05_tuning`: one gain per flight, a prediction before each flight,
+   the row in the table after it. A gain too small on purpose, the gain the
+   model suggests, then `Kp` up until the drone overshoots, `Kd` against the
+   overshoot, `Ki` against the offset, the same gains twice. One run takes
+   about 20 s in the air and three minutes with setup and saving.
+
+The analysis notebooks run alongside, on the laptops without the radio.
+`drone_analysis_01_flight_plan` runs a model of the drone, from the
+parameters recorded in part 4 or from typical values before that, and gives
+the pilot the flight plan and the prediction before each flight.
+`drone_analysis_02_summary_figure` takes a copy of the `data/` folder of the
+drone laptop, whenever there are flights to show, and makes the table and
+the figure of the group. The reference recordings under `data/reference/` serve
+while the group has no files of its own.
 
 Flying rules: the marked area only, one person at the keyboard with the cursor
 in the abort box (Enter lands the drone), one person watching, nobody within
 arm's length of a running drone, a full battery. The loop lands by itself
 when the drone leaves a 1 m box around its start, when the radio link or
-the position estimate fails, or when the battery sags.
+the position estimate fails, or when the battery sags. Change the battery
+when the status shows less than 3.5 V at rest; spare batteries and the
+charger are with the instructors.
 
 ## Files
 
@@ -89,22 +115,26 @@ the position estimate fails, or when the battery sags.
 * `2Dsim_04_velocity_loop`: a velocity loop between the position controller and the attitude loop, with the speed limit at the right place.
 * `2Dsim_05_race`: the race, flown by a preprogrammed sequence of setpoints. The end of the simulator part.
 * `drone_01_connect`: the drones in range, yours by its label, connect, status, a blink of its LEDs, the height sensor.
-* `drone_02_handtest`: what the drone measures, with the motors off: the direction of the axes, the noise and the drift of the position estimate, from a guided protocol by hand. Writes `data/drone_id.csv`, which part 3 requires.
-* `drone_03_position_loop`: the identification flight (response time of the velocity loop), the design of the position loop from it, the flight with a step response, tuning.
-* `drone_04_analysis`: predicted and measured step responses, the hold phase against the noise of part 2.
+* `drone_02_firmware_flight`: the first flights, under the drone's own controllers: a path from Python, forward and back, a square, saved like every flight.
+* `drone_03_handtest`: the code of our position loop, shown and then run for the first time with the motors off: the direction of the axes, the noise and the drift of the position estimate from a guided protocol by hand, then the sign of the gains from the feedback of the code while the drone is moved by hand.
+* `drone_04_identification`: the parameters of your drone from one flight under the firmware: the velocity setpoint step, the response time and the dead time read by eye and by a fit, the noise of the hover and its bounds on the gains, the model's step responses for each gain; the results recorded for part 5.
+* `drone_05_tuning`: our own position loop, tuned one gain per flight: the prediction before each flight from the formulas and the model, a first flight with a gain too small on purpose, the flights with `Kp`, `Kd` and `Ki`, the record and the table of the runs.
+* `drone_analysis_01_flight_plan`: the model of the drone, written out, for the members of the group not at the drone laptop: the flight plan before the tuning, the prediction for each flight during it, model flights saved like real ones; no drone needed.
+* `drone_analysis_02_summary_figure`: all saved flights side by side, real, firmware and model: the table, the step responses over each other, the paths, the hold against the hover of the identification flight, our loop against the firmware flight, the figure for the summary.
 
 Extras, not part of the day, for groups that finish early and for later:
 
 * `extra_2Dsim_01_race_interactive`: the same race as `2Dsim_05_race`, flown with the keyboard (Qt backend).
 * `extra_2Dsim_02_model_based_control`: the race with an algebraic inversion of the dynamics instead of the cascade.
 * `extra_2Dsim_03_trajectories`: smooth trajectories through the waypoints with feedforward, on top of the inversion.
+* `extra_drone_analysis_flight_data`: what the five files of a flight hold beyond the step response: height against the range sensor, roll and pitch, battery and motors, the flow sensor, the path in the plane with time, feedback against velocity; the figure for the summary as the task.
 
 Supporting files:
 
 * `module.py`: the simulator (`Drone`, `Plotter`, `PIDController`, `accel_to_phi_F`, `render_replay`).
-* `crazyflie.py`: the radio link, logging, the two flight loops, saving and loading of runs. Also a terminal tool: `python crazyflie.py find | status | flow | recover | reboot | charge`, and for the instructors `config` and `relabel`.
+* `crazyflie.py`: the radio link, logging, the two flight loops, saving and loading of runs. Also a terminal tool: `python crazyflie.py find | status | flow | recover | reboot | charge`, and for the instructors `config`, `relabel` and `channel`.
 * `drone_parameters.md`: where the simulator's parameters come from.
-* `data/reference/`: recorded sensor identification, identification flight and two step flights, for the analysis without a drone.
+* `data/reference/`: recorded sensor identification, hand test and two step flights, for the analysis without a drone.
 * `testing/`: the tests, run from this folder with `python testing/test_module.py` and `python testing/test_crazyflie.py`. The second one runs the flight loops against a fake drone and needs no hardware; it is also the check that cflib and the loops work in your environment.
 
 ## Software

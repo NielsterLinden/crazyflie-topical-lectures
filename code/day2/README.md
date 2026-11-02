@@ -9,7 +9,8 @@ using the Day 1 environment and kernel:
 
 Each notebook starts independently. Set `run_id` for the session; results go to
 local `data/<run_id>/` with fresh attempt folders. For live capture, enter the
-sticker `LABEL` as on Day 1, or use `CF_URI` with `LABEL=None`. The numbered
+sticker `LABEL` as on Day 1 and confirm the blinking drone. The helper finds
+the channel and engages the firmware stop. The numbered
 notebooks explain the motor-stop checks, data choices and completion questions.
 The notebooks are the working instructions; the [filter reference](../../docs/kalman_filter_practical.md) adds conventions and optional studies.
 
@@ -18,6 +19,10 @@ Participants fill four mathematical expressions and two short policy functions.
 recording validation; `vertical_live.py` captures accelerometer/ToF data with
 motor-stop verification and a wall-clock bound. `notebook_tools.py` supplies
 capture, plots and file handling. `tracking.py` is the E1 reference implementation.
+The shared `notebook_radio` uses Day 1's radio helpers; its
+motor-free connection leaves estimator/controller settings unchanged. Each
+comparison follows the Day 1 sequence: predict, change one choice, measure,
+compare and keep the result with its settings.
 
 From `code/`, the corresponding tests and optional CLI capture are:
 

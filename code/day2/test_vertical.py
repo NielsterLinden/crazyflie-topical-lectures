@@ -346,7 +346,7 @@ modules = {name: types.ModuleType(name) for name in (
     'cflib.crazyflie.syncCrazyflie')}
 modules['cflib'].crtp = modules['cflib.crtp']
 modules['cflib.crtp'].init_drivers = lambda: None
-modules['cflib.crazyflie'].Crazyflie = lambda: object()
+modules['cflib.crazyflie'].Crazyflie = lambda **kwargs: object()
 modules['cflib.crazyflie.log'].LogConfig = object
 def stall(phase):
     if os.environ['STALL_PHASE'] == phase:
@@ -355,13 +355,14 @@ def stall(phase):
 class Connection:
     cf = object()
     def __init__(self, *args, **kwargs): pass
-    def __enter__(self):
+    def open_link(self):
         stall('connection')
-        return self
     def wait_for_params(self): stall('parameters')
     def __exit__(self, *args): pass
 modules['cflib.crazyflie.syncCrazyflie'].SyncCrazyflie = Connection
 sys.modules.update(modules)
+import notebook_radio
+notebook_radio.crazyflie.init = lambda: None
 '''
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -429,7 +430,7 @@ sys.modules.update(modules)
                         logs[0].data_received_cb.emit(stamp, dict(zip(live.STATUS_CHANNELS, [info, *motors])), logs[0])
                     logs[1].data_received_cb.emit(stamp, dict(zip(live.SENSOR_CHANNELS, [0, 0, 1, 300])), logs[1])
         connection = MagicMock()
-        connection.__enter__.return_value.cf = cf
+        connection.cf = cf
         modules = {name: types.ModuleType(name) for name in (
             'cflib', 'cflib.crtp', 'cflib.crazyflie', 'cflib.crazyflie.log', 'cflib.crazyflie.syncCrazyflie')}
         modules['cflib'].crtp = modules['cflib.crtp']
@@ -437,7 +438,8 @@ sys.modules.update(modules)
         modules['cflib.crazyflie'].Crazyflie = MagicMock(return_value=cf)
         modules['cflib.crazyflie.log'].LogConfig = Log
         modules['cflib.crazyflie.syncCrazyflie'].SyncCrazyflie = MagicMock(return_value=connection)
-        with patch.dict('sys.modules', modules), patch.object(live, 'engage_motor_stop', return_value={'value': 1}) as stop:
+        with patch.dict('sys.modules', modules), patch('notebook_radio.crazyflie.init'), \
+             patch('notebook_radio.engage_motor_stop', return_value={'value': 1}) as stop:
             try:
                 return live.collect(output, 'test://no-radio')
             finally:

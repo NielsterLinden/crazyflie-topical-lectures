@@ -115,14 +115,13 @@ class SurveyToolTests(unittest.TestCase):
         config = MagicMock()
         modules["cflib.crazyflie.log"].LogConfig = MagicMock(return_value=config)
         connection = MagicMock()
-        context = MagicMock()
-        context.__enter__.return_value = connection
-        modules["cflib.crazyflie.syncCrazyflie"].SyncCrazyflie = MagicMock(return_value=context)
+        modules["cflib.crazyflie.syncCrazyflie"].SyncCrazyflie = MagicMock(return_value=connection)
         args = SimpleNamespace(uri="test://no-radio", log_period_ms=50,
                                shape="circle", sample_spacing=.02)
         with patch.dict(sys.modules, modules), patch.object(measure_hoop, "parse_args", return_value=args), \
              patch("builtins.input", return_value="STOP AND SURVEY"), patch("builtins.print"), \
-             patch.object(measure_hoop, "engage_motor_stop", side_effect=TimeoutError) as stop:
+             patch('notebook_radio.crazyflie.init'), \
+             patch('notebook_radio.engage_motor_stop', side_effect=TimeoutError) as stop:
             with self.assertRaises(TimeoutError):
                 measure_hoop.main()
             connection.wait_for_params.assert_called_once()
