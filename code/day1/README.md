@@ -99,7 +99,7 @@ the figure of the group. The reference recordings under `data/reference/` serve
 while the group has no files of its own.
 
 Flying rules: the marked area only, one person at the keyboard with the cursor
-in the abort box (Enter lands the drone), one person watching, nobody within
+at the abort window (Enter lands the drone), one person watching, nobody within
 arm's length of a running drone, a full battery. The loop lands by itself
 when the drone leaves a 1 m box around its start, when the radio link or
 the position estimate fails, or when the battery sags. Change the battery
@@ -146,6 +146,79 @@ all other notebooks plot inline. The flight notebooks need cflib, also part of
 the full installation. The radio address of your drone follows from the label
 on its sticker, entered at the top of each flight notebook; `drone_01_connect`
 lists the drones in range and checks yours.
+
+## Sharing a Lighthouse setup
+
+Use one drone with a working Lighthouse setup as the source for the fleet.
+With the drones on the ground and other radio clients disconnected, run from
+`code/day1`:
+
+```bash
+python crazyflie.py lighthouse-export --label 0 --out lighthouse-fleet.yaml
+python crazyflie.py lighthouse --label 1 --yaml lighthouse-fleet.yaml
+```
+
+Replace `0` with the calibrated source drone's label and `1` with a target label.
+Repeat the upload for each target. Export reads stored base-station geometry,
+factory calibration and Lighthouse type, validates them, and saves a complete
+cfclient-compatible configuration. Export and upload leave controller/estimator
+selections unchanged. Missing calibration or a read failure prevents export;
+existing output files are protected against overwriting.
+
+The complete file supplies the same coordinate system and station corrections
+to every drone. Use it for the same physical base stations, channel assignments
+and unchanged layout. After export or upload, power-cycle the affected drone
+before preflight; the helper leaves its firmware motor stop engaged. Check
+positioning on every drone before flight. Export copies the source's stored
+solution; the geometry-fit diagnostics described below belong to session-based
+calculation, rather than being measured during a memory export.
+
+### Geometry sessions
+
+The `lighthouse --label LABEL --yaml FILE` command also accepts both cfclient
+export formats:
+
+- A configuration export supplies calculated geometry and base-station calibration.
+- A geometry-session export supplies the recorded measurements. The helper runs
+  cflib's geometry solver, using cfclient's convention that the first X-axis
+  sample is one metre from the origin. It preserves the connected drone's
+  base-station calibration and system type. Use a session from the same physical
+  base stations and channel assignments. If their calibration is missing, keep
+  motors stopped, place the drone in view of the base stations and let cfclient
+  receive the calibration data before retrying.
+
+To calculate a session once and reuse its geometry across drones, prepare it
+offline, then upload the prepared file by label:
+
+```bash
+python crazyflie.py lighthouse-prepare --yaml session.yaml --out geometry.yaml
+python crazyflie.py lighthouse --label 2 --yaml geometry.yaml
+```
+
+The prepared YAML stores base-station positions and rotations, the source
+session's SHA-256, input-pose counts, solver convergence status, and mean,
+standard deviation and maximum beam disagreement for the fit and independent
+verification samples. The report is also printed when calculating or loading
+the geometry. Missing verification data is reported explicitly. Uploading a
+prepared file does not rerun the solver and preserves onboard calibration.
+Recompute after moving the base stations or changing the coordinate frame.
+Preparation refuses to overwrite an existing file.
+
+Geometry calculations require valid origin, X-axis and XY-plane samples, and at most
+0.02 m maximum beam disagreement in the fit and any verification samples. The
+helper reports solver non-convergence as a warning when those checks pass.
+Beam agreement checks internal consistency, not absolute positioning accuracy.
+
+The helper verifies the firmware motor stop, detects the target's supported
+memory slots, persists the configuration and checks read-back before resetting
+the estimator. Geometry for omitted base stations is invalidated; configuration
+exports also replace stored calibration entries. On success, power-cycle
+the drone and perform the normal preflight checks; the motor stop stays engaged
+until then. If the upload fails, keep the drone grounded and retry the complete
+export after reconnecting. `--timeout 60` allows a longer upload wait.
+
+From Python, the same upload is available as
+`connect(drone_uri(2), lighthouse_config='lighthouse.yaml')`.
 
 ## Drone model
 

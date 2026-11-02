@@ -36,6 +36,28 @@ class NotebookRadioTests(unittest.TestCase):
             self.assertEqual(radio.assigned_uri(uri='explicit'), 'assigned')
             resolve.assert_called_once_with('explicit')
 
+    def test_zero_label_reaches_day_one_discovery(self):
+        uri = 'radio://0/2/2M/E7E7E7E700'
+        with patch.object(radio.crazyflie, 'find_drone', return_value=uri) as find, \
+             patch.object(radio.crazyflie, 'resolve_uri') as resolve:
+            self.assertEqual(radio.assigned_uri(0), uri)
+        find.assert_called_once_with(0)
+        resolve.assert_not_called()
+
+    def test_identity_worker_preserves_zero_label_and_returned_address(self):
+        uri = 'radio://0/2/2M/E7E7E7E700'
+
+        def completed(command, **kwargs):
+            selection = json.loads(command[command.index('--selection') + 1])
+            self.assertEqual(selection['label'], 0)
+            result = Path(command[command.index('--result') + 1])
+            result.write_text(json.dumps({'uri': uri, 'motor_stop_check': {'value': 1}}))
+            return subprocess.CompletedProcess(command, 0, '')
+
+        with patch.object(radio, 'run_worker', side_effect=completed), \
+             patch('builtins.input', return_value='yes'):
+            self.assertEqual(radio.check_drone(0), uri)
+
     def test_rejected_identity_does_not_return_a_usable_uri(self):
         with patch.object(radio, 'run_worker', side_effect=self.completed_identity), \
              patch('builtins.input', return_value='no'):
@@ -297,6 +319,21 @@ motor_stop.engage_motor_stop = stop
             self.assertNotIn(prefix + '-identity', cells)
             self.assertIn('from notebook_radio import check_drone', cells[setup_id])
             self.assertNotIn('drone_uri(LABEL)', cells[setup_id])
+
+    def test_day_two_and_three_connection_cells_accept_zero(self):
+        root = Path(__file__).resolve().parent
+        uri = 'radio://0/2/2M/E7E7E7E700'
+        for path in ('day2/02_calibration.ipynb', 'day2/03_height_velocity.ipynb',
+                     'day3/day3_race.ipynb'):
+            notebook = json.loads((root / path).read_text())
+            source = next(''.join(cell['source']) for cell in notebook['cells']
+                          if cell['id'].endswith('-radio'))
+            check = MagicMock(return_value=uri)
+            scope = {'check_drone': check, 'output': root}
+            with self.subTest(path=path):
+                exec(source.replace('LABEL = None', 'LABEL = 0', 1), scope)
+                check.assert_called_once_with(0, cache_directory=root / '.cflib-cache')
+                self.assertEqual(scope['uri'], uri)
 
 
 if __name__ == '__main__':

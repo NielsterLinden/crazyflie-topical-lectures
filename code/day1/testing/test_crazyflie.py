@@ -411,7 +411,7 @@ def test_drone_channel_follows_the_label():
     assert crazyflie.drone_channel('A') == 72
     assert crazyflie.drone_channel('B') == 79          # the highest label of the course, inside the band
     assert crazyflie.drone_channel('E7') == 80         # the factory address keeps the factory channel
-    for bad in ('C', 15, 0, None, 'G'):
+    for bad in ('C', 15, -1, None, 'G'):
         assert _raises(crazyflie.DroneError, crazyflie.drone_channel, bad)
 
 
@@ -424,9 +424,32 @@ def test_drone_uri_from_label_address_or_uri():
     assert crazyflie.drone_uri(2, channel=80) == 'radio://0/80/2M/E7E7E7E702'      # not moved yet
     assert crazyflie.drone_uri('f', channel=80) == 'radio://0/80/2M/E7E7E7E70F'    # outside the course scheme
     assert _raises(crazyflie.DroneError, crazyflie.drone_uri, 'f')
-    for bad in (None, 0, 256, 'G', 'seven', '', 'E7E7E7E7E7', 'radio://0/80/2M/E7E7E7E7E7'):
+    for bad in (None, -1, 256, 'G', 'seven', '', 'E7E7E7E7E7', 'radio://0/80/2M/E7E7E7E7E7'):
         assert _raises(crazyflie.DroneError, crazyflie.drone_uri, bad)
     assert crazyflie.drone_label('radio://0/16/2M/E7E7E7E702') == '2'
+
+
+def test_zero_label_uses_channel_two():
+    for label in (0, '0', '00'):
+        assert crazyflie.drone_channel(label) == 2
+        assert crazyflie.drone_uri(label) == 'radio://0/2/2M/E7E7E7E700'
+        assert crazyflie.drone_uri(label, channel=80) == 'radio://0/80/2M/E7E7E7E700'
+    assert crazyflie.drone_label('radio://0/2/2M/E7E7E7E700') == '0'
+
+
+def test_zero_label_is_found_by_default_and_explicit_discovery():
+    address = 0xE7E7E7E700
+    expected = 'radio://0/2/2M/E7E7E7E700'
+    DRONES_IN_RANGE[address] = 2
+    try:
+        assert crazyflie.find_drones()[0] == expected
+        assert crazyflie.find_drones(factory=False)[0] == expected
+        assert crazyflie.find_drones(channel=2, factory=False) == {0: expected}
+        for label in (0, '0', '00'):
+            assert crazyflie.find_drones(label) == {0: expected}
+            assert crazyflie.find_drone(label) == expected
+    finally:
+        del DRONES_IN_RANGE[address]
 
 
 def test_find_drones_scans_all_channels():
@@ -470,6 +493,15 @@ def test_set_label_writes_the_configuration_block():
     assert written['radio_address'] == 0xE7E7E7E702
     assert written['radio_channel'] == 16 and written['radio_speed'] == 2 and written['version'] == 1
     assert written['pitch_trim'] == 0.0 and written['roll_trim'] == 0.0
+
+
+def test_set_label_zero_writes_the_configuration_block():
+    _reset_world()
+    with crazyflie.connect(TEST_URI) as scf:
+        assert crazyflie.set_label(scf, 0) == 'radio://0/2/2M/E7E7E7E700'
+        written = scf.cf.mem.block.written
+    assert written['radio_address'] == 0xE7E7E7E700
+    assert written['radio_channel'] == 2 and written['radio_speed'] == 2
 
 
 def test_set_channel_finds_the_drone_on_the_factory_channel_and_moves_it():
@@ -574,7 +606,9 @@ def test_fly_model_follows_the_design_and_saves_like_a_flight():
     rows = np.asarray(run['rows'], dtype=float)
     assert abs(rows[-1, 3] - rows[-1, 7]) < 0.03, rows[-1, 3]        # settled at the stepped target
     t_m, x_m, _, _ = crazyflie.model_step_response(-1.2, -0.6, 0.3)   # the same model without noise
-    i, j = np.searchsorted(rows[:, 0], 4.0 + 2.0), np.searchsorted(t_m, 2.0)
+    # fly_model logs absolute time; model_step_response uses time since the step.
+    step_time = rows[rows[:, 2] > 0.5, 0][0]
+    i, j = np.searchsorted(rows[:, 0], step_time + 2.0), np.searchsorted(t_m, 2.0)
     assert abs((rows[i, 3] - rows[0, 3]) - x_m[j]) < 0.02, (rows[i, 3], x_m[j])
     tmp = tempfile.mkdtemp()
     try:
@@ -654,7 +688,10 @@ def test_identify_response_and_the_fit():
     slow = crazyflie.model_numbers(-0.13, 0.0, 0.13)             # omega0 = 1 rad/s on a fast velocity loop
     assert slow['rise_s'] is None or slow['rise_s'] > 3.0
     told = crazyflie.predict_step(-0.5, 0.0, 0.0, 0.13, 0.2, limits={'Kp_max': 25.0, 'Kd_max': 3.0})
-    assert told == crazyflie.model_numbers(-0.5, 0.0, 0.13, delay=0.2) and 3.5 < told['rise_s'] < 4.5
+    assert told == crazyflie.model_numbers(-0.5, 0.0, 0.13, delay=0.2)
+    assert told['rise_s'] is None          # the default four-second step ends before reaching 90%
+    longer = crazyflie.model_numbers(-0.5, 0.0, 0.13, delay=0.2, step_s=8.0)
+    assert 3.5 < longer['rise_s'] < 4.5
     assert crazyflie.predict_step(-4.0, 0.3, -0.2, 0.13, 0.2, quiet=True)['overshoot_m'] > told['overshoot_m']
     late = crazyflie.model_numbers(-3.0, 0.0, 0.13, delay=0.3)   # dead time adds overshoot
     assert late['overshoot_m'] > crazyflie.model_numbers(-3.0, 0.0, 0.13)['overshoot_m']
@@ -666,7 +703,7 @@ def test_identify_response_and_the_fit():
     assert abs(omega0 - 2.0) < 1e-9 and abs(zeta - 1.3333) < 1e-3
     assert _raises(crazyflie.DroneError, crazyflie.closed_loop_parameters, 1.2, 0, 0.3)
     # the model settles at the step with the September gains
-    t, x, v, fb = crazyflie.model_step_response(-1.2, -0.6, 0.3)
+    t, x, v, fb = crazyflie.model_step_response(-1.2, -0.6, 0.3, step_s=8.0)
     assert abs(x[-1] - 0.5) < 0.01 and np.abs(fb).max() <= 0.3 + 1e-9
     assert x[t < 0].max() == 0.0
 
@@ -798,13 +835,33 @@ def test_fly_aborts_on_fence():
     assert ('land', 0.2) in FakeMotionCommander.calls
 
 
+def test_fly_refuses_takeoff_when_stop_event_is_already_set():
+    _reset_world()
+    controller, reset = make_controller()
+    stop = threading.Event()
+    stop.set()
+    try:
+        crazyflie.fly(controller, uri=TEST_URI, drone_id=None, stop_event=stop)
+        assert False, 'expected abort before take-off'
+    except crazyflie.DroneError as exc:
+        assert 'before the take-off' in str(exc), str(exc)
+    assert FakeMotionCommander.calls == [], FakeMotionCommander.calls
+
+
 def test_fly_aborts_on_stop_event():
     _reset_world()
     controller, reset = make_controller()
     stop = threading.Event()
-    threading.Timer(0.4, stop.set).start()
-    run = crazyflie.fly(controller, uri=TEST_URI, drone_id=None, axes='xy', hold_s=5.0, step_s=1.0, stop_event=stop)
+
+    def stop_during_feedback(*args):
+        stop.set()                   # request the abort after take-off, without a wall-clock race
+        return controller(*args)
+
+    run = crazyflie.fly(stop_during_feedback, uri=TEST_URI, drone_id=None, axes='xy',
+                        hold_s=5.0, step_s=1.0, stop_event=stop)
     assert run['aborted'] == 'stopped by abort', run['aborted']
+    kinds = [call[0] for call in FakeMotionCommander.calls]
+    assert kinds[0] == 'takeoff' and 'land' in kinds, kinds
 
 
 def test_fly_aborts_on_low_battery_and_bad_variance():

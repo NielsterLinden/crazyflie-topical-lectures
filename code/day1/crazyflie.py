@@ -57,10 +57,13 @@ connection at a time):
     python crazyflie.py relabel --label E7 --new 2   # store label 2 (and channel 16) in the drone, then power cycle
     python crazyflie.py channel --label 2   # move drone 2 to the channel of its label, 16, then power cycle
     python crazyflie.py params --label A    # every parameter of the drone, the stored ones listed, csv in data/
+    python crazyflie.py lighthouse --label 2 --yaml lighthouse.yaml  # upload and store the Lighthouse setup
+    python crazyflie.py lighthouse-prepare --yaml session.yaml --out geometry.yaml  # solve once, without radio
+    python crazyflie.py lighthouse-export --label 2 --out fleet.yaml  # copy the complete working setup
     python crazyflie.py compare --files data/params_9.csv data/params_A.csv   # what differs between two drones
 
 Every drone answers to its own radio address on its own channel. The label on
-the sticker, a hex digit from 1 to B, is the last byte of the five-byte
+the sticker, a hex digit from 0 to B, is the last byte of the five-byte
 address, and the channel is 2 + 7 times the label, so drone_uri(2) is
 radio://0/16/2M/E7E7E7E702. A drone that still has the factory address
 E7E7E7E7E7 sits on the factory channel 80; the data rate is the factory value
@@ -68,10 +71,13 @@ E7E7E7E7E7 sits on the factory channel 80; the data rate is the factory value
 there is no default, because a wrong address commands another group's drone.
 """
 import csv
+import hashlib
 import logging
 import math
 import os
 import re
+import signal
+import sys
 import threading
 import time
 from contextlib import contextmanager
@@ -120,7 +126,7 @@ ADDRESS_PREFIX = 'E7E7E7E7'      # the first four bytes of every drone address i
 FACTORY_ADDRESS = 'E7E7E7E7E7'   # a drone that has not been given a label yet
 FACTORY_CHANNEL = 80             # the channel of a drone that has not been given a label yet
 CHANNEL_BASE, CHANNEL_STEP = 2, 7   # the channel of label n is 2 + 7 n
-MAX_LABEL = 0xB                  # labels 1 to B give channels 9 to 79, inside the licence-free band
+MAX_LABEL = 0xB                  # labels 0 to B give channels 2 to 79, inside the licence-free band
 DEFAULT_RATE = '2M'
 
 
@@ -137,7 +143,7 @@ def _label_byte(label):
             byte = int(text, 16) if 1 <= len(text) <= 2 else -1
         except ValueError:
             byte = -1
-    if not 1 <= byte <= 0xFF:
+    if not 0 <= byte <= 0xFF:
         raise DroneError("The label is the last byte of the address in hex digits: LABEL = 2, LABEL = 'A' "
                          "for a letter, or LABEL = 'E7' for a drone that still has the factory address.")
     return byte
@@ -148,21 +154,21 @@ def drone_channel(label):
 
     Each drone of the course has a channel of its own, so that the groups in
     one room do not share a frequency. Channel n lies at 2400 + n MHz; the
-    labels 1 to B give the channels 9 to 79, inside the licence-free band,
+    labels 0 to B give the channels 2 to 79, inside the licence-free band,
     which ends at channel 83.
     """
     byte = _label_byte(label)
     if byte == int(FACTORY_ADDRESS[-2:], 16):
         return FACTORY_CHANNEL
     if byte > MAX_LABEL:
-        raise DroneError('The labels of the course run from 1 to B; label %X would need channel %d, '
+        raise DroneError('The labels of the course run from 0 to B; label %X would need channel %d, '
                          'outside the band. A drone elsewhere is reached as drone_uri(label, channel=...).'
                          % (byte, CHANNEL_BASE + CHANNEL_STEP * byte))
     return CHANNEL_BASE + CHANNEL_STEP * byte
 
 
 def drone_uri(label, channel=None, rate=DEFAULT_RATE):
-    """The URI of the drone with this label, the hex digit on its sticker (1 to B).
+    """The URI of the drone with this label, the hex digit on its sticker (0 to B).
 
     The label is the last byte of the five-byte address and sets the channel,
     2 + 7 times the label (see drone_channel): label 2 gives
@@ -247,11 +253,11 @@ def require_drone(uri):
                               'notebook, python crazyflie.py find in the terminal.' % uri)
 
 
-def find_drones(labels=range(1, MAX_LABEL + 1), rate=DEFAULT_RATE, factory=True, channel=None):
+def find_drones(labels=range(MAX_LABEL + 1), rate=DEFAULT_RATE, factory=True, channel=None):
     """List the drones in range: every label is looked for on all 126 radio channels.
 
     The dongle scans the channels for one address in a single request, so the
-    twelve addresses (the labels 1 to B, see drone_uri, and the factory address,
+    thirteen addresses (the labels 0 to B, see drone_uri, and the factory address,
     which appears as label E7) take two to three seconds at the course rate 2M.
     Prints each drone that answers with the channel it is on, and marks a drone
     that is not on the channel of its label (see drone_channel): it has not
@@ -338,22 +344,37 @@ def find_drone(label=None, address=None):
 
 
 @contextmanager
-def connect(uri=None, cache='./cache', estimator=2, controller=1):
+def connect(uri=None, cache='./cache', estimator=2, controller=1, lighthouse_config=None,
+            lighthouse_timeout=30.0):
     """Open the radio link to the assigned drone and close it cleanly afterwards.
 
     estimator 2 selects the Kalman filter, which the flow deck needs for the
     velocity and height estimates. controller 1 selects the onboard PID
     controller. On exit a stop setpoint is sent as a best-effort cleanup.
+
+    lighthouse_config optionally uploads a cfclient Lighthouse export or prepared
+    geometry YAML before yielding. Sessions and prepared geometry preserve the
+    drone's calibration. The firmware motor stop remains engaged afterwards.
+    Pass estimator=None or controller=None to leave that selection unchanged.
     """
+    lighthouse_data = None
+    if lighthouse_config is not None:
+        lighthouse_data = _read_lighthouse_config(lighthouse_config)
+        if not math.isfinite(lighthouse_timeout) or lighthouse_timeout <= 0:
+            raise DroneError('Lighthouse timeout must be a positive finite number of seconds.')
     uri = resolve_uri(uri)
     init()
     require_drone(uri)
     cf = Crazyflie(rw_cache=cache)
     with SyncCrazyflie(uri, cf=cf) as scf:
-        scf.cf.param.set_value('stabilizer.estimator', estimator)
-        scf.cf.param.set_value('stabilizer.controller', controller)
+        if estimator is not None:
+            scf.cf.param.set_value('stabilizer.estimator', estimator)
+        if controller is not None:
+            scf.cf.param.set_value('stabilizer.controller', controller)
         time.sleep(0.2)
         try:
+            if lighthouse_data is not None:
+                _upload_lighthouse_config(scf, lighthouse_data, lighthouse_timeout)
             yield scf
         finally:
             scf.cf.commander.send_stop_setpoint()
@@ -363,6 +384,364 @@ def connect(uri=None, cache='./cache', estimator=2, controller=1):
 # ---------------------------------------------------------------------------
 # Checks on the ground
 # ---------------------------------------------------------------------------
+
+def _read_lighthouse_config(filename):
+    """Load a cfclient export or prepared geometry before opening a radio."""
+    _need_cflib()
+    import yaml
+    from cflib.localization import LighthouseConfigFileManager
+
+    try:
+        try:
+            with open(filename, encoding='utf-8-sig') as file:
+                document = yaml.safe_load(file)
+        except yaml.constructor.ConstructorError:
+            geos, quality = _read_lighthouse_session(filename)
+            calibs, system_type = None, None
+        else:
+            if isinstance(document, dict) and document.get('type') == 'crazyflie-lighthouse-geometry':
+                from cflib.crazyflie.mem.lighthouse_memory import LighthouseBsGeometry
+                if document.get('version') != 1:
+                    raise ValueError('unsupported prepared-geometry version')
+                _report_lighthouse_quality(document['quality'])
+                geos = {station: LighthouseBsGeometry.from_file_object(value)
+                        for station, value in document['geometry'].items()}
+                calibs, system_type = None, None
+            else:
+                geos, calibs, system_type = LighthouseConfigFileManager.read(filename)
+                if system_type not in (1, 2):
+                    raise ValueError('Lighthouse system type must be 1 or 2')
+        _validate_lighthouse_data(geos, calibs)
+    except Exception as exc:
+        raise DroneError('Cannot read Lighthouse configuration %s: %s' % (filename, exc)) from exc
+    return geos, calibs, system_type
+
+
+def _validate_lighthouse_data(geos, calibs=None):
+    """Check geometry and wire-format compatibility before saving or uploading."""
+    if not geos or (calibs is not None and set(geos) != set(calibs)):
+        raise ValueError('include geometry and calibration for the same base stations')
+    for station, geometry in geos.items():
+        if type(station) is not int or not 0 <= station < 16:
+            raise ValueError('base-station IDs must be integers from 0 to 15')
+        if not geometry.valid or (calibs is not None and not calibs[station].valid):
+            raise ValueError('base station %s has invalid geometry or calibration' % station)
+        origin = np.asarray(geometry.origin, dtype=float)
+        rotation = np.asarray(geometry.rotation_matrix, dtype=float)
+        if origin.shape != (3,) or rotation.shape != (3, 3):
+            raise ValueError('geometry needs a three-vector origin and a 3-by-3 rotation')
+        if not np.all(np.isfinite(origin)) or not np.all(np.isfinite(rotation)):
+            raise ValueError('base-station geometry must contain finite numbers')
+        if not np.allclose(rotation.T @ rotation, np.eye(3), atol=1e-3) or not np.isclose(np.linalg.det(rotation), 1, atol=1e-3):
+            raise ValueError('base-station rotation must be an orthonormal, right-handed matrix')
+        geometry.add_mem_data(bytearray())
+        if calibs is not None:
+            for sweep in calibs[station].sweeps:
+                if not all(math.isfinite(value) for value in sweep.as_file_object().values()):
+                    raise ValueError('base-station calibration must contain finite numbers')
+            calibs[station].add_mem_data(bytearray())
+
+
+def _read_lighthouse_session(filename):
+    """Reproduce cfclient's geometry calculation with a restricted YAML loader."""
+    import yaml
+    from cflib.crazyflie.mem.lighthouse_memory import LighthouseBsGeometry
+    from cflib.localization.lighthouse_bs_vector import LighthouseBsVectors
+    from cflib.localization.lighthouse_cf_pose_sample import LhCfPoseSample
+    from cflib.localization.lighthouse_geo_estimation_manager import LhGeoInputContainerData, LhGeoEstimationManager
+
+    class SessionLoader(yaml.SafeLoader):
+        pass
+
+    for tag, container_type in (('!LhGeoInputContainerData', LhGeoInputContainerData),
+                                ('!LhCfPoseSample', LhCfPoseSample),
+                                ('!LighthouseBsVectors', LighthouseBsVectors)):
+        SessionLoader.add_constructor(tag, container_type.yaml_constructor)
+    with open(filename, 'rb') as file:
+        session_bytes = file.read()
+    session = yaml.load(session_bytes.decode('utf-8-sig'), Loader=SessionLoader)
+    if not isinstance(session, dict) or session.get('file_type_version') != 1:
+        raise ValueError('unsupported geometry-session version')
+    container = session.get('data')
+    if not isinstance(container, LhGeoInputContainerData):
+        raise ValueError('geometry-session data is missing')
+    print('Calculating Lighthouse geometry (cfclient convention: first X-axis sample at 1 metre).')
+    solution = LhGeoEstimationManager.estimate_geometry(container)
+    quality = _check_lighthouse_solution(solution)
+    quality['source_sha256'] = hashlib.sha256(session_bytes).hexdigest()
+    quality['input_pose_counts'] = {
+        'fit': 1 + len(container.x_axis) + len(container.xy_plane) + len(container.xyz_space),
+        'verification': len(container.verification),
+    }
+    print('Input poses: %(fit)d for fitting, %(verification)d for verification.' % quality['input_pose_counts'])
+    geos = {}
+    for station, pose in solution.bs_poses.items():
+        geometry = LighthouseBsGeometry()
+        geometry.origin = pose.translation.tolist()
+        geometry.rotation_matrix = pose.rot_matrix.tolist()
+        geometry.valid = True
+        geos[station] = geometry
+    _validate_lighthouse_data(geos)
+    return geos, quality
+
+
+def prepare_lighthouse_geometry(filename, output):
+    """Solve a cfclient session once and save geometry with its quality report."""
+    _need_cflib()
+    import yaml
+
+    if os.path.exists(output):
+        raise DroneError('Output already exists: %s; choose a new filename.' % output)
+    try:
+        geos, quality = _read_lighthouse_session(filename)
+        document = {'type': 'crazyflie-lighthouse-geometry', 'version': 1,
+                    'geometry': {station: geometry.as_file_object() for station, geometry in geos.items()},
+                    'quality': quality}
+        # Exclusive creation protects the session and any previous prepared geometry.
+        with open(output, 'x', encoding='utf-8') as file:
+            yaml.safe_dump(document, file, sort_keys=False)
+    except Exception as exc:
+        raise DroneError('Cannot prepare Lighthouse geometry: %s' % exc) from exc
+    print('Saved geometry and quality report to %s. Reuse while the base stations and frame remain unchanged.' % output)
+    return document
+
+
+def _check_lighthouse_solution(solution):
+    """Bound beam inconsistency; this is not a physical accuracy measurement."""
+    if (not solution.progress_is_ok or not solution.is_origin_sample_valid
+            or not solution.is_x_axis_samples_valid or not solution.is_xy_plane_samples_valid
+            or len(solution.bs_poses) < 2):
+        raise ValueError('geometry estimation failed; inspect the session in cfclient')
+    quality = {'converged': bool(solution.has_converged), 'reference_distance_m': 1.0,
+               'consistency_limit_m': 0.02}
+    for label, stats in (('fit', solution.error_stats), ('verification', solution.verification_stats)):
+        quality[label] = None if stats is None else {
+            'mean_m': float(stats.mean), 'max_m': float(stats.max), 'std_m': float(stats.std)}
+    _report_lighthouse_quality(quality)
+    return quality
+
+
+def _report_lighthouse_quality(quality):
+    """Display saved or freshly calculated beam-consistency diagnostics."""
+    if type(quality.get('converged')) is not bool or quality.get('reference_distance_m') != 1.0:
+        raise ValueError('invalid geometry quality report or reference distance')
+    for label in ('fit', 'verification'):
+        stats = quality[label]
+        if stats is None:
+            if label == 'fit':
+                raise ValueError('geometry fit diagnostics are missing')
+            print('No independent verification samples in the session.')
+            continue
+        values = [stats[key] for key in ('mean_m', 'max_m', 'std_m')]
+        if not all(math.isfinite(value) and value >= 0 for value in values):
+            raise ValueError('non-finite or invalid geometry %s errors' % label)
+        print('Geometry %s: mean %.4f m, std %.4f m, maximum %.4f m beam disagreement.'
+              % (label, stats['mean_m'], stats['std_m'], stats['max_m']))
+        if stats['max_m'] > 0.02:
+            raise ValueError('geometry %s beam disagreement exceeds 0.02 m; inspect the session in cfclient' % label)
+    if not quality['converged']:
+        print('Warning: solver did not report convergence; beam-consistency checks passed.')
+    else:
+        print('Geometry solver converged.')
+    print('Beam agreement measures internal consistency, not absolute positioning accuracy.')
+
+
+def _require_lighthouse_calibration(cf, stations, timeout):
+    """Session angles are already calibrated: retain valid calibration on the drone."""
+    from cflib.crazyflie.mem.lighthouse_memory import LighthouseMemHelper
+
+    reader = LighthouseMemHelper(cf)
+    result = _read_lighthouse_objects(reader.read_all_calibs, 'base-station calibration', timeout)
+    missing = [station for station in stations if station not in result or not result[station].valid]
+    if missing:
+        raise DroneError('Missing base-station calibration for IDs %s. With motors stopped, '
+                         'place the drone where it can receive the current base stations, '
+                         'wait for calibration data in cfclient, then retry.' % missing)
+
+
+def _read_lighthouse_objects(read_method, description, timeout):
+    """Wait for one cflib asynchronous memory read with an explicit bound."""
+    done = Event()
+    result = {}
+
+    def received(objects):
+        result.update(objects)
+        done.set()
+
+    read_method(received)
+    if not done.wait(timeout):
+        raise DroneError('Reading %s timed out; no configuration was saved or uploaded.' % description)
+    return result
+
+
+def _lighthouse_motor_stop(cf, timeout):
+    """Engage and verify the firmware motor stop; leave it engaged on return."""
+    stopped = Event()
+
+    def stop_readback(_name, value):
+        if str(value) == '1':
+            stopped.set()
+
+    cf.param.add_update_callback(group='stabilizer', name='stop', cb=stop_readback)
+    try:
+        cf.param.set_value('stabilizer.stop', '1')
+        cf.param.request_param_update('stabilizer.stop')
+        if not stopped.wait(min(timeout, 5.0)):
+            raise DroneError('Firmware motor stop was not confirmed; Lighthouse operation cancelled.')
+    finally:
+        cf.param.remove_update_callback(group='stabilizer', name='stop', cb=stop_readback)
+
+
+def _read_lighthouse_system_type(cf, timeout):
+    """Request a fresh system type without relying on cflib's parameter cache."""
+    done = Event()
+    result = []
+
+    def received(_name, value):
+        result.append(value)
+        done.set()
+
+    cf.param.add_update_callback(group='lighthouse', name='systemType', cb=received)
+    try:
+        cf.param.request_param_update('lighthouse.systemType')
+        if not done.wait(timeout):
+            raise DroneError('Reading Lighthouse system type timed out; no configuration was saved.')
+        system_type = int(result[-1])
+        if system_type not in (1, 2):
+            raise DroneError('Unsupported Lighthouse system type: %s' % system_type)
+        return system_type
+    finally:
+        cf.param.remove_update_callback(group='lighthouse', name='systemType', cb=received)
+
+
+def export_lighthouse_config(scf, output, timeout=30.0):
+    """Copy a calibrated drone's complete Lighthouse setup for the fleet."""
+    import yaml
+
+    if os.path.exists(output):
+        raise DroneError('Output already exists: %s; choose a new filename.' % output)
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise DroneError('Lighthouse timeout must be a positive finite number of seconds.')
+    cf = scf.cf
+    try:
+        from cflib.crazyflie.mem.lighthouse_memory import LighthouseMemHelper
+        from cflib.localization import LighthouseConfigFileManager as Format
+        _lighthouse_motor_stop(cf, timeout)
+        system_type = _read_lighthouse_system_type(cf, timeout)
+        reader = LighthouseMemHelper(cf)
+        all_geos = _read_lighthouse_objects(reader.read_all_geos, 'Lighthouse geometry', timeout)
+        all_calibs = _read_lighthouse_objects(reader.read_all_calibs, 'base-station calibration', timeout)
+        geos = {station: geometry for station, geometry in all_geos.items() if geometry.valid}
+        calibs = {station: all_calibs[station] for station in geos
+                  if station in all_calibs and all_calibs[station].valid}
+        if not geos:
+            raise DroneError('Source drone has no valid stored Lighthouse geometry.')
+        missing = sorted(set(geos) - set(calibs))
+        if missing:
+            raise DroneError('Source drone is missing valid factory calibration for base-station IDs %s; '
+                             'let it receive their calibration data and retry.' % missing)
+        _validate_lighthouse_data(geos, calibs)
+        if system_type != _read_lighthouse_system_type(cf, timeout):
+            raise DroneError('Lighthouse system type changed during export; retry with the source setup stable.')
+        document = {
+            Format.TYPE_ID: Format.TYPE,
+            Format.VERSION_ID: Format.VERSION,
+            Format.SYSTEM_TYPE_ID: system_type,
+            Format.GEOS_ID: {station: geometry.as_file_object() for station, geometry in geos.items()},
+            Format.CALIBS_ID: {station: calibration.as_file_object() for station, calibration in calibs.items()},
+        }
+        with open(output, 'x', encoding='utf-8') as file:
+            yaml.safe_dump(document, file, sort_keys=False)
+    except DroneError:
+        raise
+    except Exception as exc:
+        raise DroneError('Cannot export Lighthouse configuration: %s' % exc) from exc
+    for station in sorted(geos):
+        print('Base station %d: factory UID %08X, origin %s m'
+              % (station, calibs[station].uid, geos[station].origin))
+    print('Saved complete Lighthouse setup to %s. Reuse for the same base stations, '
+          'channels and room layout. Firmware motor stop remains engaged; '
+          'power-cycle the source drone before preflight.' % output)
+    print('Export copies stored geometry; it does not measure fit or positioning accuracy.')
+    return document
+
+
+def _upload_lighthouse_config(scf, data, timeout):
+    """Persist the reviewed export with the firmware motor stop left engaged."""
+    from cflib.localization import LighthouseConfigWriter
+    from cflib.crazyflie.mem.lighthouse_memory import LighthouseMemHelper
+
+    cf = scf.cf
+    _lighthouse_motor_stop(cf, timeout)
+    done = Event()
+    result = []
+
+    def stored(success):
+        result.append(bool(success))
+        done.set()
+
+    geos, calibs, system_type = data
+    print('Uploading Lighthouse configuration; omitted base stations will be invalidated.')
+    try:
+        reader = LighthouseMemHelper(cf)
+        current_geos = _read_lighthouse_objects(reader.read_all_geos, 'target geometry slots', timeout)
+        current_calibs = _read_lighthouse_objects(reader.read_all_calibs, 'target calibration slots', timeout)
+        # Invalid entries still identify supported slots. Missing slots must never be written.
+        slots = sorted(current_geos)
+        if not slots or slots != list(range(len(slots))) or set(current_calibs) != set(slots):
+            raise DroneError('Could not determine a complete, contiguous Lighthouse slot range; '
+                             'no configuration was written. Reconnect and retry.')
+        requested = set(geos) | (set(calibs) if calibs is not None else set())
+        unsupported = sorted(requested - set(slots))
+        if unsupported:
+            raise DroneError('Firmware supports Lighthouse slots %s; configuration needs unsupported slots %s. '
+                             'No configuration was written.' % (slots, unsupported))
+        print('Target exposes %d Lighthouse slots (%d-%d).' % (len(slots), slots[0], slots[-1]))
+        if calibs is None:
+            _require_lighthouse_calibration(cf, geos, timeout)
+            print('Preserving existing base-station calibration and Lighthouse system type. '
+                  'The session must belong to these same base stations and channel assignments.')
+        writer = LighthouseConfigWriter(cf, nr_of_base_stations=len(slots))
+        writer.write_and_store_config(stored, geos=geos, calibs=calibs, system_type=system_type)
+        if not done.wait(timeout):
+            raise DroneError('Lighthouse upload timed out; stored configuration may be incomplete. '
+                             'Keep the drone grounded and reconnect before retrying.')
+        if not result[0]:
+            raise DroneError('Lighthouse upload failed for one or more supported slots; '
+                             'keep the drone grounded and retry the complete export.')
+        _verify_lighthouse_upload(reader, geos, calibs, slots, timeout)
+        if system_type is not None and system_type != _read_lighthouse_system_type(cf, timeout):
+            raise DroneError('Lighthouse system type read-back differs from the uploaded configuration.')
+        reset_estimator(scf)
+    except DroneError:
+        raise
+    except Exception as exc:
+        raise DroneError('Lighthouse upload failed: %s' % exc) from exc
+    print('Lighthouse configuration stored and read-back verified. Firmware motor stop remains engaged '
+          '(stabilizer.stop=1). Power-cycle before the normal preflight checks.')
+
+
+def _verify_lighthouse_upload(reader, geos, calibs, slots, timeout):
+    """Compare requested objects in their float32 wire format and check cleared slots."""
+    for label, expected, read_method in (('geometry', geos, reader.read_all_geos),
+                                         ('calibration', calibs, reader.read_all_calibs)):
+        if expected is None:
+            continue  # Geometry-only uploads preserve existing factory calibration.
+        actual = _read_lighthouse_objects(read_method, 'uploaded ' + label, timeout)
+        for station in slots:
+            if station not in actual:
+                raise DroneError('Lighthouse %s read-back is missing slot %d.' % (label, station))
+            if station not in expected:
+                if actual[station].valid:
+                    raise DroneError('Omitted Lighthouse %s slot %d was not cleared.' % (label, station))
+                continue
+            expected_bytes, actual_bytes = bytearray(), bytearray()
+            expected[station].add_mem_data(expected_bytes)
+            actual[station].add_mem_data(actual_bytes)
+            if expected_bytes != actual_bytes or not actual[station].valid:
+                raise DroneError('Lighthouse %s read-back differs in slot %d; keep the drone grounded.'
+                                 % (label, station))
+
 
 def _toc_has(scf, complete_name):
     """True if a log variable exists in the connected drone's log table."""
@@ -412,7 +791,7 @@ def reset_estimator(scf, settle=1.5):
 
 
 # Power manager state codes reported by the pm.state log variable.
-_PM_STATE = {0: 'on battery', 1: 'charging', 2: 'charged',
+_PM_STATE = {0: 'in use', 1: 'charging', 2: 'charged',
              3: 'low power', 4: 'shutdown'}
 
 # Bit meanings of the supervisor.info log variable (recent firmware).
@@ -422,9 +801,20 @@ _SUPERVISOR_BITS = [
 ]
 
 
+# The charge curve the firmware uses for its own battery level (pm_stm32f4.c, LiPoTypicalChargeCurve):
+# resting voltage at 0, 10, 20, ... 90 percent, and 4.2 V for a full cell.
+_LIPO_CURVE = [3.00, 3.78, 3.83, 3.87, 3.89, 3.92, 3.96, 4.00, 4.04, 4.10, 4.20]
+FLIGHT_VBAT_MIN = 3.5    # V at rest; below this the drone lacks thrust, see the flight notebooks
+
+
 def _battery_percent(vbat):
-    """Rough 1S LiPo state of charge from resting voltage, 3.0 V to 4.2 V."""
-    return int(max(0, min(100, round((vbat - 3.0) / (4.2 - 3.0) * 100))))
+    """Charge in percent from the resting voltage, on the drone's own curve, interpolated between its points."""
+    if vbat <= _LIPO_CURVE[0]:
+        return 0
+    if vbat >= _LIPO_CURVE[-1]:
+        return 100
+    i = max(k for k, v in enumerate(_LIPO_CURVE) if v <= vbat)
+    return int(round(10 * (i + (vbat - _LIPO_CURVE[i]) / (_LIPO_CURVE[i + 1] - _LIPO_CURVE[i]))))
 
 
 def status(scf, timeout=5.0):
@@ -486,9 +876,14 @@ def status(scf, timeout=5.0):
     if 'pm.vbat' in data:
         vbat = data['pm.vbat']
         state = _PM_STATE.get(int(data.get('pm.state', -1)), 'unknown')
-        print('  battery      : %.2f V  (~%d%%)  %s' % (vbat, _battery_percent(vbat), state))
-        if vbat < 3.2:
-            print('  WARNING      : battery low, do not fly, recharge first')
+        print('  battery      : %s, %.2f V at rest, %d %% of a full charge' % (state, vbat, _battery_percent(vbat)))
+        if vbat < FLIGHT_VBAT_MIN:
+            print('  flight       : NO, below %.1f V, recharge first' % FLIGHT_VBAT_MIN)
+        elif _battery_percent(vbat) < 10:
+            print('  flight       : ok for a few short flights, the drone flies down to %.1f V; '
+                  'swap the battery at the next chance' % FLIGHT_VBAT_MIN)
+        else:
+            print('  flight       : ok')
     else:
         print('  battery      : unavailable')
 
@@ -508,17 +903,18 @@ def status(scf, timeout=5.0):
         print('  supervisor   : info not available on this firmware')
 
     if 'stateEstimate.z' in data:
-        line = '  height (est) : %.3f m' % data['stateEstimate.z']
+        line = '  height       : estimate %.3f m' % data['stateEstimate.z']
         if 'range.zrange' in data:
             z_range = data['range.zrange'] / 1000.0
-            line += '   height sensor %.3f m' % z_range
-            if abs(data['stateEstimate.z'] - z_range) > 0.10:
+            agree = abs(data['stateEstimate.z'] - z_range) <= 0.10
+            line += ', sensor %.3f m, %s' % (z_range, 'agree' if agree else 'DIFFER')
+            if not agree:
                 line += ('\n  WARNING      : the estimate does not follow the height sensor, the flow deck is not\n'
                          '                 delivering. Switch the drone off and on, connect again, check again.')
         print(line)
     if len(track) > 5:
         moved = math.hypot(track[-1][0] - track[0][0], track[-1][1] - track[0][1])
-        print('  estimate     : moved %.3f m in 2 s on the ground' % moved)
+        print('  position     : estimate moved %.3f m in 2 s on the ground, %s' % (moved, 'ok' if moved <= 0.05 else 'RUNS AWAY'))
         if moved > 0.05:
             print('  WARNING      : the position estimate runs away while the drone lies still: the flow deck')
             print('                 is not delivering. Switch the drone off and on, connect again, check again.')
@@ -963,7 +1359,7 @@ def print_drone_id(r):
     """Print the results of identify_sensors() in words."""
     print('sensor identification of %s, %s, %.0f samples per second'
           % (r['uri'] or 'the drone', r['time'], r['rate_hz']))
-    print('  still on the desk for %.0f s: noise std x %.3f m, y %.3f m, vx %.3f m/s, vy %.3f m/s'
+    print('  still on the desk for %.0f s: noise std x %.4f m, y %.4f m, vx %.4f m/s, vy %.4f m/s'
           % (r['still_s'], r['std_x_m'], r['std_y_m'], r['std_vx_mps'], r['std_vy_mps']))
     print('                             drift x %+.3f m, y %+.3f m' % (r['drift_x_m'], r['drift_y_m']))
     if abs(r['drift_x_m']) > 0.05 or abs(r['drift_y_m']) > 0.05:
@@ -972,7 +1368,7 @@ def print_drone_id(r):
     word = {1: '+', -1: '-  REVERSED'}
     print('  moved by hand: forward gives x %s, left gives y %s' % (word[r['x_sign']], word[r['y_sign']]))
     if r['x_sign'] > 0 and r['y_sign'] > 0:
-        print('  +x forward and +y left, as the code of parts 3 and 4 assumes')
+        print('  +x forward and +y left, as the controller code assumes')
     if 'flow_counts_max' in r:
         if r['flow_counts_max'] > 0:
             print('  flow sensor: up to %d counts during the moves, surface quality %d'
@@ -1269,14 +1665,58 @@ class FlightLog:
 # Abort by pressing Enter
 # ---------------------------------------------------------------------------
 
-def start_abort_listener():
-    """Abort on Enter: returns an Event the flight loop checks every iteration.
+ABORT_WINDOW = True      # False: the input box of the notebook instead of a window
+_QT_ABORT_KEYS = (0x01000004, 0x01000005, 0x01000000)   # Qt.Key_Return, Key_Enter, Key_Escape, the same in every binding
+_OPEN_ABORT = []         # the window of the last flight, closed when the next one opens
 
-    input() from a background thread makes the notebook show an input box (in
-    VS Code at the top of the window); pressing Enter there sets the event.
-    Headless runs have no stdin, then the listener simply stays inactive.
+
+class Abort:
+    """The abort of a flight: `stop` is the Event the loop checks, `pump(text)` keeps the window alive."""
+
+    def __init__(self, kind, stop, pump=None, close=None):
+        self.kind = kind          # 'window' or 'box'
+        self.stop = stop
+        self._pump = pump
+        self._close = close
+
+    def pump(self, text=None):
+        """Process the window's events, and show `text` in it when given; called from the loop."""
+        if self._pump is not None:
+            self._pump(text)
+
+    def close(self):
+        if self._close is not None:
+            self._close()
+            self._close = None
+
+
+def start_abort(title='Crazyflie: Enter lands the drone', on_stop=None):
+    """Enter lands the drone: a small window where one can open, the input box of the notebook otherwise.
+
+    The window comes from the Qt that matplotlib uses, like the keyboard flying
+    of the simulator, and the flight loop pumps its events itself, so nothing
+    goes through the notebook's stdin and the printout of the cell stays live
+    in every frontend. Enter, Escape, the button and closing the window set the
+    Event. Without a window (no Qt, no display, ABORT_WINDOW = False) input()
+    from a background thread shows the input box of the notebook and Enter in
+    it sets the Event; a headless run has no stdin, then only the kernel
+    interrupt lands the drone. `on_stop` is called once when the abort is
+    requested, before the loop gets to act on it.
     """
+    while _OPEN_ABORT:
+        _OPEN_ABORT.pop().close()
     stop = threading.Event()
+    has_display = sys.platform != 'linux' or os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY')
+    if ABORT_WINDOW and has_display:
+        try:
+            pump, close = _abort_window(stop, title, on_stop)
+        except Exception as exc:                  # no Qt binding, no display
+            print('no abort window (%s: %s); the input box of the notebook takes Enter instead'
+                  % (type(exc).__name__, exc))
+        else:
+            abort = Abort('window', stop, pump, close)
+            _OPEN_ABORT.append(abort)
+            return abort
 
     def _listen():
         try:
@@ -1284,25 +1724,116 @@ def start_abort_listener():
         except Exception:
             return
         stop.set()
+        if on_stop is not None:
+            on_stop()
 
     threading.Thread(target=_listen, daemon=True).start()
-    return stop
+    return Abort('box', stop)
+
+
+def _abort_window(stop, title, on_stop=None):
+    """A window with a status line and a button; Enter, Escape, the button or closing it set `stop`."""
+    from matplotlib.backends.qt_compat import QtWidgets   # the binding matplotlib found: PyQt6, PySide6 or PyQt5
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(['crazyflie'])
+    state = {'closing': False}
+
+    def request(*_args):
+        """The abort is asked for: say so at once, the loop lands when it can."""
+        if stop.is_set():
+            return
+        stop.set()
+        status.setText('ABORT: landing as soon as possible')
+        if on_stop is not None:
+            on_stop()
+
+    class Window(QtWidgets.QWidget):
+        def keyPressEvent(self, event):
+            if event.key() in _QT_ABORT_KEYS:
+                request()
+
+        def closeEvent(self, event):
+            if not state['closing']:
+                request()
+            event.accept()
+
+    window = Window()
+    window.setWindowTitle(title)
+    window.setMinimumSize(480, 180)
+    layout = QtWidgets.QVBoxLayout(window)
+    status = QtWidgets.QLabel('Click into this window, so that it takes the keys.')
+    status.setWordWrap(True)
+    button = QtWidgets.QPushButton('Enter lands the drone')
+    button.clicked.connect(request)
+    for widget in (status, button):
+        font = widget.font()
+        font.setPointSize(16)
+        widget.setFont(font)
+        layout.addWidget(widget)
+    window.show()
+    window.raise_()
+    window.activateWindow()
+    app.processEvents()
+
+    def pump(text=None):
+        if text is not None:
+            status.setText(text)
+        app.processEvents()
+
+    def close():
+        state['closing'] = True
+        window.close()
+        app.processEvents()
+
+    return pump, close
+
+
+def _wait(seconds, pump=None, stop=None):
+    """Sleep in short slices, pumping the abort window; returns early once `stop` is set."""
+    t_end = time.monotonic() + seconds
+    while True:
+        if pump is not None:
+            pump()
+        if stop is not None and stop.is_set():
+            return
+        left = t_end - time.monotonic()
+        if left <= 0:
+            return
+        time.sleep(min(0.05, left))
+
+
+def _ignore_interrupts():
+    """Ignore the kernel interrupt until the returned function is called: a second one must not cut the landing short."""
+    if threading.current_thread() is not threading.main_thread():
+        return lambda: None
+    previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    return lambda: signal.signal(signal.SIGINT, previous)
 
 
 def bench_test_abort(duration=10.0):
-    """Dummy loop with the same abort listener the flight uses, no drone.
+    """Dummy loop with the same abort as the flights, no drone.
 
-    Run once per session before the first flight: press Enter in the input box
-    and the loop must report the abort.
+    Run once per session before the first flight: press Enter in the abort
+    window (or in the input box where no window opens) and the loop must
+    report the abort. The kernel interrupt is reported as well.
     """
-    stop = start_abort_listener()
+    abort = start_abort('Abort test: Enter must stop this loop')
     t0 = time.monotonic()
-    while time.monotonic() - t0 < duration and not stop.is_set():
-        time.sleep(0.05)
-    if stop.is_set():
-        print('abort seen after %.1f s, the listener works in this frontend' % (time.monotonic() - t0))
+    try:
+        while time.monotonic() - t0 < duration and not abort.stop.is_set():
+            abort.pump('abort test, %.0f s left: press Enter' % (duration - (time.monotonic() - t0)))
+            time.sleep(0.05)
+    except KeyboardInterrupt:
+        print('the kernel interrupt stopped the loop after %.1f s; that lands the drone too' % (time.monotonic() - t0))
+        return
+    finally:
+        abort.close()
+    if abort.stop.is_set():
+        print('abort seen after %.1f s through the %s, the abort works in this frontend'
+              % (time.monotonic() - t0, 'window' if abort.kind == 'window' else 'input box'))
     else:
-        print('no abort within %.0f s; press Enter once now to close the input box' % duration)
+        print('no abort within %.0f s' % duration
+              + ('; press Enter once now to close the input box' if abort.kind == 'box' else ''))
 
 
 # ---------------------------------------------------------------------------
@@ -1335,7 +1866,7 @@ def handtest(controller, duration=30.0, target=(0.0, 0.0), v_max=0.3,
     start". Then for `duration` seconds the loop reads x, y, vx, vy at
     1000 / period_ms Hz, calls the controller, prints every tenth sample and
     stores all of them. The feedback must oppose the displacement: push the
-    drone toward +x and the vx feedback must go negative.
+    drone toward +x and the feedback fb_x must go negative.
 
     Returns the data as a dict of numpy arrays (t_ms, x, y, vx, vy, fb_x,
     fb_y) and writes them to `out` when a path is given. sign_check() on the
@@ -1362,7 +1893,7 @@ def handtest(controller, duration=30.0, target=(0.0, 0.0), v_max=0.3,
             def arrow(fb):
                 return '-> +' if fb > 0.02 else '-> -' if fb < -0.02 else '   0'
             elapsed = (ts - rows[0][0]) / 1000.0
-            print('%4.1f / %.0f s   x %+.2f m  vx %+.2f %s     y %+.2f m  vy %+.2f %s'
+            print('%4.1f / %.0f s   x %+.2f m  fb_x %+.2f %s     y %+.2f m  fb_y %+.2f %s'
                   % (elapsed, duration, x, fb_x, arrow(fb_x), y, fb_y, arrow(fb_y)))
 
     conf = LogConfig(name='handtest', period_in_ms=period_ms)
@@ -1375,7 +1906,7 @@ def handtest(controller, duration=30.0, target=(0.0, 0.0), v_max=0.3,
             print('WARNING: flow deck not detected, the state estimate will be meaningless')
         print('resetting estimator, hold the drone still and level...')
         reset_estimator(scf)
-        print('GO: move the drone by hand. Push toward +x and the vx feedback should read -.')
+        print('GO: move the drone by hand. Push toward +x and fb_x should read -.')
         scf.cf.log.add_config(conf)
         conf.start()
         t0 = time.monotonic()
@@ -1439,14 +1970,14 @@ def sign_check(d, min_move=0.05, dead=0.02, pass_fraction=0.8, quiet=False):
     return result
 
 
-def _check_deck_on_ground(flight, latest, timeout=2.0, tolerance=0.10, still_s=1.5, still_m=0.05, still_v=0.05):
+def _check_deck_on_ground(flight, latest, timeout=2.0, tolerance=0.10, still_s=1.5, still_m=0.05, still_v=0.05, pump=None):
     """Before arming: the height estimate must agree with the range sensor, and the position estimate
     must stay put for still_s seconds with the motors off (moved less than still_m, velocity below
     still_v); otherwise the deck is not delivering. The window doubles as the settle time after the
     estimator reset."""
     t_end = time.monotonic() + timeout
     while time.monotonic() < t_end and not (flight.rows['sensor'] and flight.rows['state']):
-        time.sleep(0.05)
+        _wait(0.05, pump)
     if not (flight.rows['sensor'] and flight.rows['state']):
         raise DroneError('no log samples arriving, aborting before arming; is the link alive?')
     z_range = flight.rows['sensor'][-1]['range.zrange'] / 1000.0
@@ -1457,11 +1988,11 @@ def _check_deck_on_ground(flight, latest, timeout=2.0, tolerance=0.10, still_s=1
                          % (z_est, z_range))
     t_end = time.monotonic() + timeout
     while time.monotonic() < t_end and 'stateEstimate.x' not in latest:
-        time.sleep(0.05)
+        _wait(0.05, pump)
     if 'stateEstimate.x' not in latest:
         raise DroneError('no state samples arriving, aborting before arming; is the link alive?')
     x0, y0 = latest['stateEstimate.x'], latest['stateEstimate.y']
-    time.sleep(still_s)
+    _wait(still_s, pump)
     moved = math.hypot(latest['stateEstimate.x'] - x0, latest['stateEstimate.y'] - y0)
     speed = math.hypot(latest['stateEstimate.vx'], latest['stateEstimate.vy'])
     if moved > still_m or speed > still_v:
@@ -1470,7 +2001,7 @@ def _check_deck_on_ground(flight, latest, timeout=2.0, tolerance=0.10, still_s=1
                          'try again.' % (moved, still_s, speed))
 
 
-def fly(controller, axes='x', step=0.5, z_hold=0.5, hold_s=4.0, step_s=8.0,
+def fly(controller, axes='x', step=0.5, z_hold=0.5, hold_s=2.0, step_s=4.0,
         loop_dt=0.02, v_max=0.3, fence=1.0, reset=None, uri=None, stop_event=None,
         drone_id=None, hover_s=2.0, info=None):
     """One flight: take off, hand the horizontal axes to `controller`, hold, step, hold, land.
@@ -1493,7 +2024,7 @@ def fly(controller, axes='x', step=0.5, z_hold=0.5, hold_s=4.0, step_s=8.0,
     correctly. Every feedback value is clamped to +/- v_max here, whatever the
     controller returns.
 
-    The loop aborts and lands by itself when Enter is pressed in the input box
+    The loop aborts and lands by itself when Enter is pressed in the abort window
     (or stop_event is set), when the drone leaves the `fence` box around the
     start, when state samples stop arriving for 0.5 s, when the battery sags
     below 3.1 V under load, when the estimator's position variance blows up
@@ -1527,9 +2058,17 @@ def fly(controller, axes='x', step=0.5, z_hold=0.5, hold_s=4.0, step_s=8.0,
     started = time.strftime('%H%M')          # goes into the names of the saved files
     t_cell = time.monotonic()
 
+    abort = start_abort('Crazyflie %s: Enter lands the drone' % drone_label(uri),
+                        on_stop=lambda: print('[%4.1f s] ABORT requested, landing as soon as possible'
+                                             % (time.monotonic() - t_cell))) if stop_event is None else None
+    if abort is not None:
+        stop_event = abort.stop
+    pump = abort.pump if abort is not None else None
+
     def stage(text):
         print('[%4.1f s] %s' % (time.monotonic() - t_cell, text))
-    own_listener = stop_event is None
+        if abort is not None:
+            abort.pump(text)
     latest = {}   # newest state sample, written by the log callback
     rows = []     # one entry per loop iteration
 
@@ -1555,22 +2094,25 @@ def fly(controller, axes='x', step=0.5, z_hold=0.5, hold_s=4.0, step_s=8.0,
         conf.start()
         stage('connected, estimator reset, 1.5 s watching the estimate on the ground')
         reset_estimator(scf, settle=0.0)
-        _check_deck_on_ground(flight, latest)   # settle time and deck check in one window
+        _check_deck_on_ground(flight, latest, pump=pump)   # settle time and deck check in one window
         scf.cf.supervisor.send_arming_request(True)
         t_arm = time.monotonic()
         while time.monotonic() - t_arm < 1.0:   # wait for the armed flag instead of a fixed second
             land_rows = flight.rows['land']
             if land_rows and int(land_rows[-1]['supervisor.info']) & (1 << 1):
                 break
-            time.sleep(0.05)
+            _wait(0.05, pump)
         stage('deck ok, armed, take-off to %.2f m' % z_hold)
 
-        if own_listener:
-            stop_event = start_abort_listener()   # Enter in the box = abort and land
-
+        if stop_event.is_set():                 # Enter during the connect, the deck check or the arming
+            if abort is not None:
+                abort.close()
+            raise DroneError('stopped by abort before the take-off; nothing was flown')
+        if abort is not None:
+            abort.pump('taking off: Enter lands as soon as the drone is up')
         with MotionCommander(scf, default_height=z_hold) as mc:
             stage('in the air, %.1f s to settle at hover' % hover_s)
-            time.sleep(hover_s)   # settle at hover under the onboard controller
+            _wait(hover_s, pump, stop_event)   # settle at hover under the onboard controller; Enter counts already
             if 't_ms' not in latest:
                 raise DroneError('no state samples arriving, aborting before handover')
             x0 = latest['stateEstimate.x']
@@ -1579,6 +2121,7 @@ def fly(controller, axes='x', step=0.5, z_hold=0.5, hold_s=4.0, step_s=8.0,
             if reset is not None:
                 reset()
             stage('handover at x %.2f m, y %.2f m, controller on %s' % (x0, y0, axes))
+            stage('hold at the start for %g s' % hold_s)
             sensor_rows = flight.rows['sensor']
             if sensor_rows and sensor_rows[-1]['range.zrange'] / 1000.0 < 0.5 * z_hold:
                 aborted = ('height sensor reads %.2f m after the take-off to %.2f m: the deck is not delivering'
@@ -1595,10 +2138,13 @@ def fly(controller, axes='x', step=0.5, z_hold=0.5, hold_s=4.0, step_s=8.0,
                             target[0] = x0 + step
                         if 'y' in axes:
                             target[1] = y0 + step
-                        print('step to x %.2f m, y %.2f m' % (target[0], target[1]))
+                        stage('step to x %.2f m, y %.2f m' % (target[0], target[1]))
+                        stage('hold at the new target for %g s' % step_s)
                     t_end = time.monotonic() + dur
                     while time.monotonic() < t_end:
                         now = time.monotonic()
+                        if pump is not None:
+                            pump()
                         if stop_event.is_set():
                             aborted = 'stopped by abort'
                             break
@@ -1652,18 +2198,25 @@ def fly(controller, axes='x', step=0.5, z_hold=0.5, hold_s=4.0, step_s=8.0,
                 # interrupt would cut the landing short, so press once.
                 aborted = 'interrupted by user'
             finally:
-                mc.start_linear_motion(0.0, 0.0, 0.0)
-                time.sleep(0.5)
-                land_gently(mc, from_height=z_hold)
+                restore = _ignore_interrupts()      # a second interrupt must not cut the landing short
+                try:
+                    mc.start_linear_motion(0.0, 0.0, 0.0)
+                    time.sleep(0.5)
+                    stage('landing')
+                    land_gently(mc, from_height=z_hold)
+                finally:
+                    restore()
 
         time.sleep(1.5)
         conf.stop()
         flight.stop()
 
+    if abort is not None:
+        abort.close()
     print('ABORTED: %s' % aborted if aborted else 'run completed')
     print('loop iterations:', len(rows), ' logged rows:', flight.n_rows)
-    if own_listener and not stop_event.is_set():
-        print('landed. Press Enter once to close the abort box; the flight is over, Enter does nothing else now')
+    if abort is not None and abort.kind == 'box' and not stop_event.is_set():
+        print('landed. Press Enter once to close the input box; the flight is over, Enter does nothing else now')
     return {'rows': rows, 'flight': flight, 'aborted': aborted, 'axes': axes,
             'step': step, 'v_max': v_max, 'uri': uri, 'time': started, 'drone': drone_label(uri),
             'info': dict(info or {})}
@@ -1683,7 +2236,7 @@ def fly_path(moves, uri=None, z=0.5, speed=0.3, turn_rate=45.0, hold_s=2.0, loop
 
     The same checks as in fly(): the deck before arming, the fence around the
     start, stale samples, battery, estimator variance, a frozen height sensor;
-    Enter in the input box (or stop_event) lands the drone. Returns the run
+    Enter in the abort window (or stop_event) lands the drone. Returns the run
     dict of fly(): the planned position in the target columns, the velocity
     setpoint sent, in the frame of the room, in the fb columns, the 'step'
     column 0 during the first second of hover and 1 from the first move on,
@@ -1696,11 +2249,18 @@ def fly_path(moves, uri=None, z=0.5, speed=0.3, turn_rate=45.0, hold_s=2.0, loop
 
     def stage(text):
         print('[%4.1f s] %s' % (time.monotonic() - t_cell, text))
+        if abort is not None:
+            abort.pump(text)
 
     for what, _amount in moves:
         if what not in ('forward', 'back', 'left', 'right', 'up', 'down', 'turn', 'hold'):
             raise DroneError('unknown move %r; use forward, back, left, right, up, down, turn or hold' % (what,))
-    own_listener = stop_event is None
+    abort = start_abort('Crazyflie %s: Enter lands the drone' % drone_label(uri),
+                        on_stop=lambda: print('[%4.1f s] ABORT requested, landing as soon as possible'
+                                             % (time.monotonic() - t_cell))) if stop_event is None else None
+    if abort is not None:
+        stop_event = abort.stop
+    pump = abort.pump if abort is not None else None
     latest = {}
     rows = []
 
@@ -1725,21 +2285,25 @@ def fly_path(moves, uri=None, z=0.5, speed=0.3, turn_rate=45.0, hold_s=2.0, loop
         conf.start()
         stage('connected, estimator reset, 1.5 s watching the estimate on the ground')
         reset_estimator(scf, settle=0.0)
-        _check_deck_on_ground(flight, latest)
+        _check_deck_on_ground(flight, latest, pump=pump)
         scf.cf.supervisor.send_arming_request(True)
         t_arm = time.monotonic()
         while time.monotonic() - t_arm < 1.0:
             land_rows = flight.rows['land']
             if land_rows and int(land_rows[-1]['supervisor.info']) & (1 << 1):
                 break
-            time.sleep(0.05)
+            _wait(0.05, pump)
         stage('deck ok, armed, take-off to %.2f m' % z)
-        if own_listener:
-            stop_event = start_abort_listener()
 
+        if stop_event.is_set():                 # Enter during the connect, the deck check or the arming
+            if abort is not None:
+                abort.close()
+            raise DroneError('stopped by abort before the take-off; nothing was flown')
+        if abort is not None:
+            abort.pump('taking off: Enter lands as soon as the drone is up')
         with MotionCommander(scf, default_height=z) as mc:
             stage('in the air, %.1f s to settle at hover' % hover_s)
-            time.sleep(hover_s)
+            _wait(hover_s, pump, stop_event)
             if 't_ms' not in latest:
                 raise DroneError('no state samples arriving, aborting before the path')
             x0, y0 = latest['stateEstimate.x'], latest['stateEstimate.y']
@@ -1779,6 +2343,8 @@ def fly_path(moves, uri=None, z=0.5, speed=0.3, turn_rate=45.0, hold_s=2.0, loop
                     t_end = time.monotonic() + duration
                     while time.monotonic() < t_end:
                         now = time.monotonic()
+                        if pump is not None:
+                            pump()
                         if stop_event.is_set():
                             aborted = 'stopped by abort'
                             break
@@ -1820,18 +2386,25 @@ def fly_path(moves, uri=None, z=0.5, speed=0.3, turn_rate=45.0, hold_s=2.0, loop
             except KeyboardInterrupt:
                 aborted = 'interrupted by user'
             finally:
-                mc.start_linear_motion(0.0, 0.0, 0.0)
-                time.sleep(0.5)
-                land_gently(mc, from_height=z)
+                restore = _ignore_interrupts()      # a second interrupt must not cut the landing short
+                try:
+                    mc.start_linear_motion(0.0, 0.0, 0.0)
+                    time.sleep(0.5)
+                    stage('landing')
+                    land_gently(mc, from_height=z)
+                finally:
+                    restore()
 
         time.sleep(1.5)
         conf.stop()
         flight.stop()
 
+    if abort is not None:
+        abort.close()
     print('ABORTED: %s' % aborted if aborted else 'path completed')
     print('loop iterations:', len(rows), ' logged rows:', flight.n_rows)
-    if own_listener and not stop_event.is_set():
-        print('landed. Press Enter once to close the abort box; the flight is over, Enter does nothing else now')
+    if abort is not None and abort.kind == 'box' and not stop_event.is_set():
+        print('landed. Press Enter once to close the input box; the flight is over, Enter does nothing else now')
     return {'rows': rows, 'flight': flight, 'aborted': aborted, 'axes': 'xy', 'step': 0.0, 'v_max': speed,
             'uri': uri, 'time': started, 'drone': drone_label(uri), 'path': list(moves),
             'info': dict(info or {}, speed=speed, z=z, moves='; '.join('%s %s' % m for m in moves))}
@@ -1974,8 +2547,8 @@ def design_gains(tau, omega0, zeta=0.7):
     return Kp, Kd
 
 
-def model_step_response(Kp, Kd, tau, Ki=0.0, delay=0.0, step=0.5, v_max=0.3, hold_s=4.0,
-                        step_s=8.0, dt=0.02):
+def model_step_response(Kp, Kd, tau, Ki=0.0, delay=0.0, step=0.5, v_max=0.3, hold_s=2.0,
+                        step_s=4.0, dt=0.02):
     """The step response of the position loop around a first order velocity loop with dead time.
 
     The same sequence as the flight: hold at 0 for hold_s, then the target
@@ -2001,7 +2574,7 @@ def model_step_response(Kp, Kd, tau, Ki=0.0, delay=0.0, step=0.5, v_max=0.3, hol
     return t, x, v, fb
 
 
-def model_numbers(Kp, Kd, tau, delay=0.0, step=0.5, v_max=0.3, Ki=0.0, hold_s=4.0, step_s=8.0):
+def model_numbers(Kp, Kd, tau, delay=0.0, step=0.5, v_max=0.3, Ki=0.0, hold_s=2.0, step_s=4.0):
     """Rise time, overshoot, settling error and clamp use of the model step response.
 
     The same numbers that step_numbers() gives for a flight, from
@@ -2045,8 +2618,8 @@ def predict_step(Kp, Kd, Ki, tau, delay, step=0.5, v_max=0.3, limits=None, quiet
         show = lambda v: '--' if v is None else '%.2f' % v
         print('%-28s %18s %14s' % ('model', 'dead time %.2f s' % delay, 'no dead time'))
         for key, text in (('rise_s', 'rise to 90 % [s]'), ('overshoot_m', 'overshoot [m]'),
-                          ('settle_error_m', 'max error, last 3 s [m]'),
-                          ('mean_error_m', 'mean error, last 3 s [m]')):
+                          ('settle_error_m', 'max error, last 2 s [m]'),
+                          ('mean_error_m', 'mean error, last 2 s [m]')):
             print('%-28s %18s %14s' % (text, show(with_delay[key]), show(without[key])))
     return with_delay
 
@@ -2056,7 +2629,7 @@ def run_table(runs, quiet=False):
 
     The gains come from the settings saved with the run (see save()); runs
     without them show '--'. The numbers are those of step_numbers(): rise
-    time to 90 percent, overshoot, largest and mean error over the last 3 s,
+    time to 90 percent, overshoot, largest and mean error over the last 2 s,
     fraction of the step spent at the limit of the feedback. Returns the rows as a
     list of dicts.
     """
@@ -2094,7 +2667,7 @@ class _ModelLog:
         return []
 
 
-def fly_model(controller, axes='x', step=0.5, hold_s=4.0, step_s=8.0, loop_dt=0.02, v_max=0.3,
+def fly_model(controller, axes='x', step=0.5, hold_s=2.0, step_s=4.0, loop_dt=0.02, v_max=0.3,
               fence=1.0, reset=None, tau=0.3, delay=0.0, drone_id=None,
               noise_scale=1.0, seed=None, quiet=False, info=None):
     """The flight of fly() on a model of the drone: no radio, no drone, no waiting.
@@ -2206,7 +2779,7 @@ def save(run, label, data_dir='data'):
     The settings of the run go to flight_<name>_info.csv as name,value
     rows: drone, time, label, axes, step, v_max, the abort reason, and
     what the flight was given as `info`, for example the gains.
-    The settle check is the largest position error over the last 3 s of the
+    The settle check is the largest position error over the last 2 s of the
     step; below 0.15 m counts as settled. The name is what load_run() takes.
     """
     name = run_name(run, label)
@@ -2326,7 +2899,7 @@ def step_numbers(run, v_max=0.3, crit=0.15, quiet=False):
     Rise time is the time after the step at which the position first passes
     90 percent of the step. Overshoot is the largest excursion beyond the new
     target. The settling error is the largest |target - position| over the
-    last 3 s of the step phase; below `crit` counts as settled. Clamp use is
+    last 2 s of the step phase; below `crit` counts as settled. Clamp use is
     the fraction of the step phase in which the feedback sat at +/- v_max.
     Returns a dict per axis and prints a summary unless quiet.
     """
@@ -2338,7 +2911,7 @@ def step_numbers(run, v_max=0.3, crit=0.15, quiet=False):
         return numbers
     t = pid['t_s']
     in_step = pid['step'] > 0.5
-    tail = in_step & (t >= t[-1] - 3.0)
+    tail = in_step & (t >= t[-1] - 2.0)
     for a in run['axes']:
         target = pid['target_%s' % a]
         d = target[-1] - target[0]
@@ -2358,7 +2931,7 @@ def step_numbers(run, v_max=0.3, crit=0.15, quiet=False):
         print(run['label'])
         for a, n in numbers.items():
             rise = '%.2f s' % n['rise_s'] if n['rise_s'] is not None else 'not reached'
-            print('  %s: rise to 90%% %s, overshoot %.3f m, last 3 s max |error| %.3f m '
+            print('  %s: rise to 90%% %s, overshoot %.3f m, last 2 s max |error| %.3f m '
                   '(mean %+.3f m), clamp %.0f%% of step'
                   % (a, rise, n['overshoot_m'], n['settle_error_m'], n['mean_error_m'],
                      100.0 * n['clamp_fraction']))
@@ -2376,7 +2949,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Drone status and crash recovery from the terminal.')
     parser.add_argument('command', choices=['find', 'status', 'recover', 'reboot', 'charge', 'flow',
-                                            'config', 'relabel', 'channel', 'params', 'compare'],
+                                            'config', 'relabel', 'channel', 'params', 'compare', 'lighthouse',
+                                            'lighthouse-prepare', 'lighthouse-export'],
                         help='find: list the drones in range by label (all channels for one label with --label); '
                              'status: battery and readiness; recover: clear a crashed state, '
                              'then status; reboot: soft reboot over the radio (for a locked '
@@ -2387,12 +2961,17 @@ if __name__ == '__main__':
                              'channel: move the drone to the channel of its label, 2 + 7 times the '
                              'label, looking for it on channel 80 first; '
                              'params: read every parameter, list the stored settings, save them as csv; '
-                             'compare: the parameters that differ between two params files (--files A B)')
-    parser.add_argument('--label', default=None, help='the label of the drone, a hex digit 1 to B')
+                             'compare: the parameters that differ between two params files (--files A B); '
+                             'lighthouse: upload and store geometry (--yaml FILE --label LABEL); '
+                             'lighthouse-prepare: solve a session offline and save geometry/quality (--yaml FILE --out FILE); '
+                             'lighthouse-export: copy a calibrated drone to a fleet configuration (--label LABEL --out FILE)')
+    parser.add_argument('--yaml', default=None, help='Lighthouse configuration, geometry session or prepared geometry YAML')
+    parser.add_argument('--timeout', type=float, default=30.0, help='Lighthouse: timeout per read/upload operation, seconds')
+    parser.add_argument('--label', default=None, help='the label of the drone, a hex digit 0 to B')
     parser.add_argument('--uri', default=None, help='the radio address, if not built from the label')
     parser.add_argument('--new', default=None, help='relabel: the new label to store in the drone')
     parser.add_argument('--files', nargs=2, default=None, metavar='CSV', help='compare: two files of params')
-    parser.add_argument('--out', default=None, help='params: the csv to write, default data/params_<label>.csv')
+    parser.add_argument('--out', default=None, help='params: output CSV; lighthouse-prepare/export: output YAML')
     parser.add_argument('--channel', type=int, default=None,
                         help='find: ping all labels on this one channel only (quick), instead of scanning all channels')
     args = parser.parse_args()
@@ -2402,10 +2981,35 @@ if __name__ == '__main__':
         parser.error('channel needs --label LABEL')
     if args.command == 'compare' and args.files is None:
         parser.error('compare needs --files A.csv B.csv')
+    if args.command == 'lighthouse' and (args.label is None or args.yaml is None):
+        parser.error('lighthouse needs --label LABEL and --yaml FILE')
+    if args.command == 'lighthouse' and args.uri is not None:
+        parser.error('lighthouse uses --label; omit --uri')
+    if args.command == 'lighthouse-prepare' and (args.yaml is None or args.out is None):
+        parser.error('lighthouse-prepare needs --yaml SESSION and --out GEOMETRY')
+    if args.command == 'lighthouse-prepare' and (args.label is not None or args.uri is not None):
+        parser.error('lighthouse-prepare is offline; omit --label and --uri')
+    if args.command == 'lighthouse-export' and (args.label is None or args.out is None):
+        parser.error('lighthouse-export needs --label SOURCE_LABEL and --out FILE')
+    if args.command == 'lighthouse-export' and (args.uri is not None or args.yaml is not None):
+        parser.error('lighthouse-export reads the source drone; omit --uri and --yaml')
+    if args.command in ('lighthouse', 'lighthouse-export') and (not math.isfinite(args.timeout) or args.timeout <= 0):
+        parser.error('Lighthouse timeout must be a positive finite number of seconds')
 
     try:
         uri = args.uri or (drone_uri(args.label) if args.label is not None else None)
-        if args.command == 'find':
+        if args.command == 'lighthouse-prepare':
+            prepare_lighthouse_geometry(args.yaml, args.out)
+        elif args.command == 'lighthouse-export':
+            if os.path.exists(args.out):
+                raise DroneError('Output already exists: %s; choose a new filename.' % args.out)
+            with connect(uri, estimator=None, controller=None) as scf:
+                export_lighthouse_config(scf, args.out, timeout=args.timeout)
+        elif args.command == 'lighthouse':
+            with connect(uri, estimator=None, controller=None, lighthouse_config=args.yaml,
+                         lighthouse_timeout=args.timeout):
+                pass  # connect() completes the upload before yielding.
+        elif args.command == 'find':
             if args.label is None:
                 find_drones(channel=args.channel)
             else:

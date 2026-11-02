@@ -47,7 +47,7 @@ instructions in the flight notebooks, `drone_02_firmware_flight`,
 `drone_04_identification` and `drone_05_tuning`; they contain powered flights.
 
 All groups fly at the same time in the marked area. One person is at the
-keyboard with the cursor in the abort box, one person watches the drone; the
+keyboard with the abort window in front, one person watches the drone; the
 flight area must be clear and the onboard stabilization active. Test the abort
 interaction before flying. The group members without the drone laptop run the
 model of the drone in `drone_analysis_01_flight_plan` and prepare the
