@@ -3,7 +3,7 @@
     ".gitignore": "06814268f0d656c9f3fa5f8c518714105e93c3e18368fb41ea6dd2ec045e1ebc",
     ".python-version": "7b55f8e67b5623c4bef3fa691288da9437d79d3aba156de48d481db32ac7d16d",
     "Dockerfile": "e883a1e39b9dbad7a4cb23121b01cb5a819ea98e969a31aff4375c85f79acb91",
-    "README.md": "24ba415efac040bcfbeae23c03be4a24ec276916e3d092156cecc9bd9f55077b",
+    "README.md": "95d1b9584d1be28f1be6bfb0781d0c9293e887af2ca1205d88581181fef439d3",
     "code/README.md": "c8b45b8c51a93bccb54b4f9ad64762f9582ecef4317fc799a3e99d7186197769",
     "code/andreas/README.md": "c37c4c12f2d6065f0f7199ae0a3b086f08dda1531a6483fb04cdd5e682e357a7",
     "code/andreas/__init__.py": "8b664311d1e4e013419db710e32ca35dc77e2240679ef72fc1c35cd21878ad8e",
@@ -50,7 +50,7 @@
     "code/day2/01_tracking.ipynb": "01ec1edbb5afc50c29778201a49bdb30927f8a638adbfec3eed0c2d3f4490068",
     "code/day2/02_calibration.ipynb": "7f96a66419eeccc4f225cbb5492b7f3f7b9932ca779ef4011f9d457dd9da4326",
     "code/day2/03_height_velocity.ipynb": "2f6e2c8766b21748514cadd2bd937543a27faa78443cacc06e5f9acec32ffd2c",
-    "code/day2/README.md": "6a56a04b1aa7cf162e03398811d3ac9be46ca77a7fffe09847ac785658267b3a",
+    "code/day2/README.md": "324146d6ecdc3f9a6c444c475c161705c992ed3ba14765194ed8f61c1a5c8bb2",
     "code/day2/__init__.py": "a99585642a8cdd219cf30a6cbdf9ca464012be174034b18f120ae9b8bee89477",
     "code/day2/exercise_policies.py": "b15885683659601fddbbabd27564d55368ed29ad9dd589311f704059f72d75ff",
     "code/day2/experiment_data.py": "910681b0f5202a9d1e7e3ba83e8cc9842802af322584667ea20527636a0b3858",
@@ -63,7 +63,7 @@
     "code/day2/simulate.py": "5e61e3c9b0385865faf2aaf62ddce54008be46612c041ab1c8d5bbf9e59ea5e2",
     "code/day2/six_state_reference.md": "6f31c907a7b1dbb1c8b5eba06f3ba10d20cf4ddbcc23b1566186cd631f42601c",
     "code/day2/test_experiments.py": "0ce3b3af77ba1be8f5cef30425360d20abff2fe85b48954fe39ceaa3e65e2ed9",
-    "code/day2/test_layout.py": "927a60aa08dd2c2fc95c4d99b3e7c31ae74c406636d6e9a6b59a47d3c4e1a5a7",
+    "code/day2/test_layout.py": "a8b273014166044500845e6c07ce672bf75dffa9dffaf5c45dad7c56ed85a46e",
     "code/day2/test_live.py": "033f32f1898369694ba7157d4294f8f6615d85d2a6afafe1553b479a60a4e829",
     "code/day2/test_notebook_tools.py": "09af1b8ac95a9b27b2c3e40aaf1714d358f66ba4a20f2bba5c38b678faf2d8ff",
     "code/day2/test_replay.py": "752b28d1f0c184b3a54cf8e9716761e9f7055e94cf47151ce2249d752c7db011",
@@ -176,6 +176,6 @@
     "scripts/test_validate_environment.py": "dd5dbcdb68b0fa1cd976bdcca706f1c077b1acd0997fe2acf55fae2390b945dc",
     "scripts/validate_environment.py": "a7d52852faa2d1f287f1570981b76e5ffd16308410f289aa5a9aae07b810cd08"
   },
-  "source_revision": "a582a7d8cb321546a5abffb336565c2027555db3",
-  "version": "0.1.9"
+  "source_revision": "48dc6d1823c228e7a362af47574885faf21f0d5d",
+  "version": "0.1.10"
 }
