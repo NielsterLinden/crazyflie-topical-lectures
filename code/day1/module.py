@@ -933,6 +933,73 @@ def accel_to_phi_F(a_y, a_z, M=Drone.CF_M, g=Drone.CF_G):
     return phi, F
 
 
+def live_replay(drone, results, speed=1.0, label="", target_fps=60):
+    """Replay a recorded run as a live animation in the interactive Plotter window.
+
+    Plays the rows of ``results`` back in (scaled) real time, in the same
+    two-panel window as the keyboard-flying notebook: full field with the
+    targets, and a zoomed view with the force / position readout. The run
+    is replayed from the recorded data, not simulated again, so the
+    animation shows exactly the run in your plots. Needs an interactive
+    backend (``%matplotlib qt``); closing the window stops the replay.
+
+    Args:
+        drone: Drone the results were produced with. Its flight range and
+            targets set the view; its state is overwritten by the replay.
+        results: (N, >=12) array filled with ``state_to_array`` rows.
+            Trailing all-zero rows (left when a loop breaks early) are
+            ignored.
+        speed: Playback speed, 1.0 is real time. Use e.g. 3 for long runs.
+        label: Optional text shown in the full-field panel.
+        target_fps: Render rate of the window.
+
+    Returns:
+        The Plotter, so the window can be closed with ``.close()``.
+    """
+    nonzero = np.nonzero(results[:, 0])[0]
+    if len(nonzero) == 0:
+        raise ValueError("results array is empty")
+    n = int(nonzero[-1]) + 1
+
+    # Runs with a clamped flight_range (e.g. [0, 0, 0, 0] for the jig tests)
+    # would give a zero-size full-field view: widen such axes to the
+    # default +-3 m for the display only.
+    real_range = drone.range
+    y0, z0, y1, z1 = real_range
+    if y1 - y0 < 1e-9:
+        y0, y1 = -3.0, 3.0
+    if z1 - z0 < 1e-9:
+        z0, z1 = -3.0, 3.0
+    drone.range = (y0, z0, y1, z1)
+    drone.target_idx = 0
+    try:
+        plotter = Plotter(drone, target_fps=target_fps)
+    finally:
+        drone.range = real_range
+    pos = {"i": 0.0}
+
+    def physics_step():
+        i = min(int(pos["i"]), n - 1)
+        drone.solve_state[:] = results[i, 1:7]   # y, z, phi, dy, dz, dphi
+        drone.forces[:] = results[i, 7:11]       # F, tau, F_left, F_right
+        drone.target_idx = int(results[i, 11])
+        pos["i"] += speed
+
+    def render_step():
+        i = min(int(pos["i"]), n - 1)
+        text = f"t = {results[i, 0]:5.1f} s"
+        plotter.update_display(f"{label}  {text}" if label else text)
+
+    def stop_condition():
+        return pos["i"] >= n or not plt.fignum_exists(plotter.fig.number)
+
+    physics_step()
+    plotter.start_animation(physics_step, render_step, stop_condition)
+    if plt.fignum_exists(plotter.fig.number):
+        render_step()   # leave the final frame on screen
+    return plotter
+
+
 def render_replay(drone, results, fps=30, size=500, max_frames=600):
     """Render a recorded drone trajectory as an inline SVG with a JS player.
 
