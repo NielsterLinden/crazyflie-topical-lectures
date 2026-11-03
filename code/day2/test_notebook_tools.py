@@ -92,9 +92,22 @@ class RawCaptureTests(unittest.TestCase):
             destination = Path(directory) / "imu.csv"
             with patch.dict(sys.modules, modules), patch(
                 "notebook_radio.engage_motor_stop", return_value={"verified": True}
-            ), patch("notebook_radio.crazyflie.init"), patch("day2.notebook_tools.time.monotonic", side_effect=[0, 0, 0, 1]):
+            ), patch("notebook_radio.crazyflie.init"), patch(
+                "day2.notebook_tools.time.monotonic",
+                side_effect=[0, 0, 0, 1, 0, 0, 0, 1],
+            ):
                 path, count = capture(
                     "radio://0/80/2M/TEST", destination, IMU_CHANNELS, duration_s=.01
+                )
+                destination.write_text("stale data")
+                with self.assertRaises(FileExistsError):
+                    capture(
+                        "radio://0/80/2M/TEST", destination, IMU_CHANNELS,
+                        duration_s=.01,
+                    )
+                path, count = capture(
+                    "radio://0/80/2M/TEST", destination, IMU_CHANNELS,
+                    duration_s=.01, overwrite=True,
                 )
 
             self.assertEqual(path, destination)
@@ -114,9 +127,12 @@ class RawCaptureTests(unittest.TestCase):
                 config_holder["config"].variables,
                 [(name, "float") for name in IMU_CHANNELS],
             )
-            crazyflie.Crazyflie.assert_called_once_with(
-                rw_cache=str(destination.parent / ".cflib-cache")
-            )
+            self.assertEqual(crazyflie.Crazyflie.call_count, 2)
+            for call in crazyflie.Crazyflie.call_args_list:
+                self.assertEqual(
+                    call.kwargs["rw_cache"],
+                    str(destination.parent / ".cflib-cache"),
+                )
 
     def test_partial_interrupted_and_changed_captures_are_not_auto_selected(self):
         with tempfile.TemporaryDirectory() as directory:

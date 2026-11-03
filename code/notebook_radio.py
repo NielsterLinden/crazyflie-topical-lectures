@@ -100,11 +100,13 @@ def _identify(selection, cache_directory, result_path):
         json.dump({"uri": selected, "motor_stop_check": check}, stream)
 
 
-def check_drone(label=None, uri=None, *, cache_directory="./cache", timeout_s=30):
+def check_drone(label=None, uri=None, *, cache_directory="./cache", timeout_s=30,
+                confirm_blink=True):
     """Discover, lock, report status and blink; return the actual connected URI.
 
     Discovery, handshake, parameters, stop verification and blinking share one
-    deadline. The confirmation prompt runs after the child has closed the link.
+    deadline. By default, prompt for blink confirmation after the child closes
+    the link. Set confirm_blink=False only when verifying the drone independently.
     The stop remains engaged; flight requires a power cycle and fresh preflight.
     """
     if not math.isfinite(timeout_s) or timeout_s <= 0:
@@ -129,8 +131,12 @@ def check_drone(label=None, uri=None, *, cache_directory="./cache", timeout_s=30
         selected = crazyflie.resolve_uri(receipt["uri"])
         if receipt["motor_stop_check"].get("value") != 1:
             raise crazyflie.DroneError("Firmware stop was not verified; leave the drone on the surface.")
-    if input("Did your drone blink? [y/N]: ").strip().lower() not in ("y", "yes"):
-        raise crazyflie.DroneError("Drone identity unconfirmed; check the sticker before reconnecting.")
+    if confirm_blink:
+        print("Identity check is complete. Confirm the LEDs on your drone to continue.", flush=True)
+        if input("Did the intended drone blink? Type 'yes' to continue [y/N]: ").strip().lower() not in ("y", "yes"):
+            raise crazyflie.DroneError("Drone identity unconfirmed; check the sticker before reconnecting.")
+    else:
+        print("Blink confirmation skipped; verify the intended drone independently.", flush=True)
     print("Firmware stop remains engaged.")
     return selected
 

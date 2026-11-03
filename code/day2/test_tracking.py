@@ -162,7 +162,7 @@ class TrackingTests(unittest.TestCase):
 
         notebook = json.loads((Path(__file__).parent / '01_tracking.ipynb').read_text())
         source = ''.join(next(cell for cell in notebook['cells']
-                              if cell['id'] == 'day2-tracking-reference')['source'])
+                              if 'run_tracking_reference = False' in ''.join(cell['source']))['source'])
         with tempfile.TemporaryDirectory() as temporary, redirect_stdout(io.StringIO()):
             output = Path(temporary) / 'notebook'
             displayed = []

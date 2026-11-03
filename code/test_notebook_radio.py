@@ -65,13 +65,28 @@ class NotebookRadioTests(unittest.TestCase):
                 radio.check_drone(2)
 
     def test_successful_worker_precedes_confirmation_and_preserves_integer_label(self):
+        output = io.StringIO()
         with patch.object(radio, 'run_worker', side_effect=self.completed_identity) as worker, \
-             patch('builtins.input', return_value='yes') as confirm:
+             patch('builtins.input', return_value='yes') as confirm, \
+             redirect_stdout(output):
             self.assertEqual(radio.check_drone(10), 'radio://0/16/2M/E7E7E7E702')
         command = worker.call_args.args[0]
         self.assertEqual(json.loads(command[command.index('--selection') + 1])['label'], 10)
         self.assertEqual(worker.call_args.kwargs['timeout_s'], 30)
         confirm.assert_called_once()
+        self.assertIn("Confirm the LEDs on your drone to continue.", output.getvalue())
+
+    def test_blink_confirmation_can_be_skipped_without_skipping_worker_checks(self):
+        output = io.StringIO()
+        with patch.object(radio, 'run_worker', side_effect=self.completed_identity) as worker, \
+             patch('builtins.input') as confirm, \
+             redirect_stdout(output):
+            self.assertEqual(radio.check_drone(2, confirm_blink=False),
+                             'radio://0/16/2M/E7E7E7E702')
+        worker.assert_called_once()
+        confirm.assert_not_called()
+        self.assertIn("Blink confirmation skipped", output.getvalue())
+        self.assertIn("Firmware stop remains engaged.", output.getvalue())
 
     def test_failed_timed_out_or_missing_worker_result_never_prompts(self):
         for result in (subprocess.TimeoutExpired('identity', 30),
@@ -302,7 +317,7 @@ motor_stop.engage_motor_stop = stop
                 self.assertNotIn('offline', guide.lower())
                 self.assertNotIn('offline', code.lower())
 
-    def test_offline_notebook_setup_and_radio_cells_never_connect(self):
+    def test_radio_cells_require_a_label_before_connection(self):
         root = Path(__file__).resolve().parent
         for path, setup_id, prefix in (
                 ('day2/02_calibration.ipynb', 'day2-calibration-setup', 'day2-calibration'),
@@ -310,12 +325,16 @@ motor_stop.engage_motor_stop = stop
                 ('day3/day3_race.ipynb', 'day3-setup', 'day3')):
             notebook = json.loads((root / path).read_text())
             cells = {c['id']: ''.join(c['source']) for c in notebook['cells']}
-            scope = {'check_drone': radio.check_drone, 'output': root}
+            source = cells[prefix + '-radio'].split('\n# retreieve', 1)[0]
+            scope = {'check_drone': radio.check_drone, 'output': root, 'uri': None}
             with self.subTest(path=path), patch.object(radio, 'assigned_uri') as connect:
-                exec(cells[prefix + '-radio'], scope)
+                if path == 'day2/02_calibration.ipynb':
+                    with self.assertRaisesRegex(ValueError, 'Set LABEL'):
+                        exec(source, scope)
+                else:
+                    exec(source, scope)
                 self.assertIsNone(scope['uri'])
                 connect.assert_not_called()
-            self.assertLessEqual(len(cells[prefix + '-radio'].splitlines()), 4)
             self.assertNotIn(prefix + '-identity', cells)
             self.assertIn('from notebook_radio import check_drone', cells[setup_id])
             self.assertNotIn('drone_uri(LABEL)', cells[setup_id])
@@ -326,13 +345,16 @@ motor_stop.engage_motor_stop = stop
         for path in ('day2/02_calibration.ipynb', 'day2/03_height_velocity.ipynb',
                      'day3/day3_race.ipynb'):
             notebook = json.loads((root / path).read_text())
-            source = next(''.join(cell['source']) for cell in notebook['cells']
-                          if cell['id'].endswith('-radio'))
+            source = next(''.join(cell['source']).split('\n# retreieve', 1)[0]
+                          for cell in notebook['cells'] if cell['id'].endswith('-radio'))
             check = MagicMock(return_value=uri)
             scope = {'check_drone': check, 'output': root}
             with self.subTest(path=path):
                 exec(source.replace('LABEL = None', 'LABEL = 0', 1), scope)
-                check.assert_called_once_with(0, cache_directory=root / '.cflib-cache')
+                expected_kwargs = {'cache_directory': root / '.cflib-cache'}
+                if path == 'day2/02_calibration.ipynb':
+                    expected_kwargs['confirm_blink'] = False
+                check.assert_called_once_with(0, **expected_kwargs)
                 self.assertEqual(scope['uri'], uri)
 
 

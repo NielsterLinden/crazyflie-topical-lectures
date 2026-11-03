@@ -186,8 +186,8 @@ def log_channel_elements(cf, channels: Sequence[str]):
     return elements
 
 
-def capture(uri, output, channels, *, duration_s=60, period_ms=20):
-    """Save selected raw Crazyflie log channels as a timestamped CSV."""
+def capture(uri, output, channels, *, duration_s=60, period_ms=20, overwrite=False):
+    """Save selected raw Crazyflie log channels; optionally replace an existing capture."""
     if not isinstance(uri, str) or not uri.startswith("radio://"):
         raise ValueError("Provide the assigned Crazyradio URI.")
     if not channels or isinstance(channels, str) or len(set(channels)) != len(channels):
@@ -196,9 +196,19 @@ def capture(uri, output, channels, *, duration_s=60, period_ms=20):
         raise ValueError("Capture duration must be finite and positive.")
     if not isinstance(period_ms, int) or isinstance(period_ms, bool) or period_ms <= 0:
         raise ValueError("Logging period must be a positive integer number of milliseconds.")
+    if not isinstance(overwrite, bool):
+        raise ValueError("overwrite must be True or False.")
 
     destination = Path(output)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    if overwrite:
+        receipt_path = Path(str(destination) + ".capture.json")
+        existing_paths = (destination, receipt_path)
+        if any(path.is_dir() for path in existing_paths):
+            raise IsADirectoryError("Capture output and receipt paths must be files.")
+        for path in existing_paths:
+            if path.exists() or path.is_symlink():
+                path.unlink()
     changed = threading.Event()
     lock = threading.Lock()
     state = {"first_sample": None, "last_sample": None, "rows": 0, "error": None}
@@ -329,3 +339,54 @@ def next_attempt(parent):
     result = parent / f"attempt-{number:03d}"
     print("Saving this attempt to:", result)
     return result
+
+
+def calc_3sigmarms(x, max_iter=50, tol=1e-6):
+    """
+    '3-sigma RMS': find (mu, sigma) such that the RMS of the data about mu,
+    computed inside the window |x - mu| <= 3*sigma, equals sigma.
+
+    Returns (mu, sigma), where mu is the centre of the window (the mean of
+    the points inside it, once converged).
+    """
+    x = np.asarray(x, dtype=float)
+    x = x[np.isfinite(x)]
+    n = len(x)
+    if n < 3:
+        raise ValueError("need at least 3 values")
+
+    mu = np.median(x)                      # robust starting point
+    sigma = np.sqrt(np.mean((x - mu) ** 2))
+
+    for _ in range(max_iter):
+        # "symmetrize": only the distance to the centre matters
+        d = np.sort(np.abs(x - mu))
+        k = np.arange(1, n + 1)
+        rms = np.sqrt(np.cumsum(d ** 2) / k)   # RMS of the k closest points
+        g = 3 * rms - d                        # >0: window edge still "inside" 3*rms
+
+        # as in the ROOT code, require more than half of the data in the window
+        kmin = n // 2 + 1
+        below = np.nonzero(g[kmin - 1:] <= 0)[0]
+
+        if below.size == 0:
+            # never self-consistent: fall back to the plain RMS
+            new_sigma = rms[-1]
+        else:
+            kk = kmin + below[0]               # first k (1-based) with 3*rms <= edge
+            prev = rms[kk - 2]                 # rms with kk-1 points in the window
+            if 3 * prev < d[kk - 1]:
+                new_sigma = prev               # exact solution: 3*rms_(k-1) lies in [d_(k-1), d_k)
+            else:
+                new_sigma = d[kk - 1] / 3.0    # rms jumps across the edge: take the crossing point
+
+        # recentre on the mean of the points inside the window
+        inside = np.abs(x - mu) <= 3 * new_sigma
+        new_mu = x[inside].mean()
+
+        converged = abs(new_mu - mu) < tol * new_sigma and abs(new_sigma - sigma) < tol * new_sigma
+        mu, sigma = new_mu, new_sigma
+        if converged:
+            break
+
+    return mu, sigma
