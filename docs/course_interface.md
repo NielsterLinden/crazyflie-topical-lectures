@@ -1,16 +1,10 @@
-# Course files and flight commands
+# Course files and flight interface
 
 This guide describes the shared course file format and flight-tool interface.
 The [survey guide](hoop_survey_challenge.md) covers gate measurements.
 The [synthetic course](../examples/course.synthetic.json) illustrates
 the format only: it is **not measured, qualified, or enabled for flight**.
-It can be inspected locally without a drone:
-
-```bash
-python -m json.tool examples/course.synthetic.json
-```
-
-The [participant trajectory tool](trajectory_construction.md) builds and plots
+The [trajectory planner](trajectory_construction.md) builds and plots
 ordered measured crossings and laps without a radio. Its exported course uses
 this format; its polynomial reference is not automatically the runner's path.
 
@@ -30,39 +24,45 @@ evidence for Day 3's planning choices; their deployment to a flight controller
 is a separate integration step.
 
 For Day 3, agree a [run card](glossary.md#run-card-and-configuration-freeze): the
-tested race tool's directory, launch command/version, actual controller/estimator,
+tested race tool's file, Python interpreter, directory/version, actual controller/estimator,
 command units, limits, operator and stop path. Confirm access on the shared flight
 laptop at R1, along with the race rules and times. The conservative race tool
-streams position targets, so Day 1's velocity-command gains need their own
-interface checks before reuse. There is no expectation to build a new launcher
-during the race practical; keep a tested baseline and shared recordings available.
+streams position targets; the firmware position PID supplies velocity targets,
+as Day 1's outer loop did. Check frame, units and timing before reusing numerical
+gains. Keep a tested baseline and shared recordings available.
 
-For the course interface below, the supplied launcher exposes:
-
-```text
-python flight_runner.py --config TEAM_COURSE.json --dry-run --plot
-python flight_runner.py --config CHECKED_COURSE.json --fly --uri DISCOVERED_URI --log UNIQUE_RUN.csv
-```
-
-Run those commands in the shared flight-tool directory/environment, not
-the course package. The run card supplies that directory and launcher; if
-using a module launcher it supplies the equivalent command with these arguments.
-The first command does not connect to a radio. The team's pilot uses the second
-after the preflight checks and second-member cross-check pass, with the stop
-operator ready. The team then explicitly enables the checked course; the launcher
-requests the exact course name as confirmation. Never bypass confirmation.
-Use the flight command printed by Day 3's **Connect** workflow: its `--uri`
-argument carries the address discovered from `LABEL`. Replace the course and
-log filenames with those for the checked attempt; keep that discovered address.
+Use [the flight notebook](../code/day3/03_flight.ipynb) for the dry run and
+flight. The run card supplies the runner file, its Python interpreter and working
+directory. The notebook launches it in that environment, checks the exact course,
+and retains its course-name confirmation and landing-on-abort behaviour.
+Its **Connect** cell selects the drone from `LABEL` and leaves firmware stop
+engaged. Afterwards, power-cycle the grounded drone and repeat preflight, keeping
+the discovered URI without rerunning Connect. Cross-check with the stop operator
+ready before enabling flight. Each dry run has a separate report; each flight
+reads an archived copy of its exact course alongside its telemetry and console log.
 Only one radio client controls a drone at a time.
 
-**Before R2 acquisition**, try the example JSON with the shared dry-run launcher;
+The supplied runner also accepts an explicit `--tuning` JSON file. Its protocol
+is checked during the dry run; older tools fail before flight instead of silently
+ignoring the settings. The file binds one family and its factor to a captured
+baseline URI. Core choices are horizontal position P gains (PID) or horizontal
+acceleration process noise (Kalman). The optional `parameter_group` selects one
+allowlisted stretch group described in the flight notebook: position/velocity
+P, I or D gains, or vertical-acceleration, velocity or position process noise.
+Factors scale positive baseline values; zero-valued groups are rejected.
+Active controller/estimator and all baseline
+values are checked before any tuning write. Writes and restoration require fresh
+acknowledgements. The per-attempt `.tuning.json` and `.parameters.json` files record
+the request, original/applied/restored values and any failure. Restoration runs
+after landing/stop handling and before the connection closes. Failed restoration
+keeps the attempt unsuccessful; verify baseline values before another flight.
+
+**Before R2 acquisition**, try the example JSON in the flight notebook's dry run;
 teams can help each other check its structure. Fix format mismatches before
 surveying; successful validation does not qualify synthetic or measured geometry.
 If the flight program, limits or run card are missing, continue with simulation
 or recordings. Note what is missing and use a tested shared alternative
-or supplied recordings. The starter's named profiles are configuration labels,
-not implementations of this launcher.
+or supplied recordings.
 
 ## Course JSON format
 
@@ -75,7 +75,7 @@ geometry ID and the physical point used for drone position in the survey record.
 | --- | --- |
 | `course_name` | Nonempty course identifier, also used for interactive confirmation. |
 | `enabled_for_flight` | JSON boolean; keep `false` until the team's preflight checks pass and the pilot and stop operator confirm readiness. Record that decision before enabling the course. |
-| `uri_environment_variable` | Retained for compatibility with existing runner configurations. The notebook's command supplies the discovered address directly with `--uri`. |
+| `uri_environment_variable` | Radio setting used by the standalone runner; the flight notebook supplies its `LABEL`-selected URI directly. |
 | `yaw_deg` | Fixed world-frame heading reference in degrees, held throughout the course. |
 | `start`, `finish` | Airborne trajectory endpoints; the runner checks compatibility between the resting location and takeoff start. |
 | `hoops` | Nonempty ordered list of crossing events; repeated passages through a physical gate each have their own entry. |
@@ -138,8 +138,8 @@ emergency stop. An uploaded onboard trajectory is a different execution path
 requiring its own qualification and run-card description.
 An offboard filter can be assessed in shadow mode without changing flight.
 Using a participant controller/observer to drive hardware requires a separately
-documented and tested [adapter](glossary.md#adapter-and-runner), including rate, timing, limits and aborts;
-selecting a profile string does not create one.
+documented and tested [adapter](glossary.md#adapter-and-runner), including the
+command interface, rate, timing, limits, aborts and active controller/estimator.
 
 The operator returns the exact course, settings/run card, console events and CSV
 for every attempt, including aborts. The [offline plotter](../scripts/plot_race.py)
