@@ -3,7 +3,7 @@
     ".gitignore": "06814268f0d656c9f3fa5f8c518714105e93c3e18368fb41ea6dd2ec045e1ebc",
     ".python-version": "7b55f8e67b5623c4bef3fa691288da9437d79d3aba156de48d481db32ac7d16d",
     "Dockerfile": "e883a1e39b9dbad7a4cb23121b01cb5a819ea98e969a31aff4375c85f79acb91",
-    "README.md": "27e2a781f180407c7d1414209e9515d02a22cb515f6f380e29260fc7d7508176",
+    "README.md": "5a1f40098bcf2de7ffe669c87e79d2c35ed299103cbce49ae4fe5e65dc116a15",
     "code/README.md": "565b84105bfd7470152a662476fbff44443ad31f97a2e38d3fc117d10bf7c750",
     "code/andreas/README.md": "c37c4c12f2d6065f0f7199ae0a3b086f08dda1531a6483fb04cdd5e682e357a7",
     "code/andreas/__init__.py": "8b664311d1e4e013419db710e32ca35dc77e2240679ef72fc1c35cd21878ad8e",
@@ -126,7 +126,7 @@
     "docs/day_2_kalman.md": "2e5a06a4a7689f3088587519cf8554dfab2a04fbced1d9620bf158b3d2fa9559",
     "docs/day_3_race.md": "ae053195ca2e312779fc1b72a1c9d28ab5ef4c216eee57fc3b3a1b2d620b7b3d",
     "docs/detector_system_analogies.md": "e05de1efffd86239441e2200a88023816cdb1ecfb5398e74362f8ad7a4dbfa3b",
-    "docs/drone_hardware.md": "6136f4255eaf6dd65e2e221e8cfa175048fa430b6384e29df52e7c2a77746454",
+    "docs/drone_hardware.md": "73a8ac230a1cc1a69b15f0c06c9c5918cc229f95bb9d846270f5ac3c24ccc844",
     "docs/glossary.md": "dd237f69cf1c144030d26769b892e0f8b1d1f23ead76e79f78047d2234ee2419",
     "docs/gravitational_wave_control_analogies.md": "d3e0276d08a39dd60091974af9178cee4139208e885e4ed9f46be576b88b5ade",
     "docs/hoop_survey_challenge.md": "8939f8cef15d4497f24d28c3dbb5f663c427f97df80d947b40b5a06f77bfcc42",
@@ -164,6 +164,6 @@
     "scripts/test_validate_environment.py": "dd5dbcdb68b0fa1cd976bdcca706f1c077b1acd0997fe2acf55fae2390b945dc",
     "scripts/validate_environment.py": "a7d52852faa2d1f287f1570981b76e5ffd16308410f289aa5a9aae07b810cd08"
   },
-  "source_revision": "863e1ca07b6477d92d905bb4c962eac087a789be",
-  "version": "0.1.7"
+  "source_revision": "d9cd08cc86c0fbf1a20e7b9a41ab9b3766ad84fc",
+  "version": "0.1.8"
 }
