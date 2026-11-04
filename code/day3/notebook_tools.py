@@ -14,11 +14,13 @@ from race_common.hoop import Hoop
 
 
 def clearance_budget(course, position_covariance, *, survey_allowance_m,
-                     tracking_allowance_m, sigma_multiplier=2.5):
+                     tracking_allowance_m, sigma_multiplier=2.5, margin_calculation=None):
     """Project Day 2's position covariance into each gate's opening plane.
 
     Add survey and control-tracking allowances as conservative bounds. Their
     sum is a planning allowance, not a calibrated collision probability.
+    A notebook calculation receives (U, C, survey, tracking, k) and returns
+    (plane standard deviation, margin); the shared calculation bounds it below.
     """
     if not isinstance(course, dict):
         raise ValueError("Select valid course inputs before budgeting clearance.")
@@ -35,8 +37,19 @@ def clearance_budget(course, position_covariance, *, survey_allowance_m,
     for entry in course['hoops']:
         gate = Hoop(entry['centre'], entry['normal'], entry['radius_m'])
         plane_covariance = gate.plane_covariance(covariance)
-        sigma = float(np.sqrt(max(0.0, np.linalg.eigvalsh(plane_covariance).max())))
-        margin = float(survey_allowance_m + tracking_allowance_m + sigma_multiplier * sigma)
+        minimum_sigma = float(np.sqrt(max(0.0, np.linalg.eigvalsh(plane_covariance).max())))
+        minimum_margin = float(survey_allowance_m + tracking_allowance_m + sigma_multiplier * minimum_sigma)
+        if margin_calculation is None:
+            sigma, margin = minimum_sigma, minimum_margin
+        else:
+            sigma, margin = margin_calculation(gate.plane_basis(), covariance.copy(),
+                                               survey_allowance_m, tracking_allowance_m, sigma_multiplier)
+            sigma, margin = float(sigma), float(margin)
+            required_margin = max(minimum_margin,
+                                  survey_allowance_m + tracking_allowance_m + sigma_multiplier * sigma)
+            if (not np.isfinite([sigma, margin]).all() or sigma < 0 or margin < 0
+                    or sigma < minimum_sigma - 1e-12 or margin < required_margin - 1e-12):
+                raise ValueError("Gate margin calculation must retain the projected uncertainty and allowances.")
         gates.append({'name': entry['name'], 'plane_std_m': sigma, 'required_margin_m': margin})
     if not gates:
         raise ValueError("A clearance budget needs at least one gate.")
