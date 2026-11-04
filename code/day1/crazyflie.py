@@ -1723,9 +1723,19 @@ def start_abort(title='Crazyflie: Enter lands the drone', on_stop=None):
             return abort
 
     def _listen():
-        try:
-            input('press Enter to ABORT and land: ')
-        except Exception:
+        for _attempt in range(3):
+            t_open = time.monotonic()
+            try:
+                input('press Enter to ABORT and land: ')
+            except Exception:
+                return
+            # Some frontends (VS Code) hand a stale or empty answer back at once:
+            # an Enter within a second of opening the box is not a real abort.
+            if time.monotonic() - t_open >= 1.0:
+                break
+            time.sleep(0.2)
+        else:
+            print('the input box answers by itself: only the kernel interrupt lands the drone')
             return
         stop.set()
         if on_stop is not None:
@@ -1798,7 +1808,7 @@ def _abort_window_macosx(stop, title, on_stop=None):
     from matplotlib.figure import Figure
 
     fig = Figure(figsize=(5.0, 1.9))
-    manager = FigureCanvasMac.new_manager(fig, 'crazyflie-abort')
+    manager = FigureCanvasMac.new_manager(fig, 9001)    # the number is the window id, it must be an int
     canvas = fig.canvas
     for cid in (getattr(manager, 'key_press_handler_id', None), getattr(manager, 'button_press_handler_id', None)):
         if cid is not None:
