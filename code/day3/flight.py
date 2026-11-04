@@ -14,6 +14,7 @@ import threading
 import time
 
 from race_common.tuning import validate_tuning
+from .notebook_tools import validate_plan_summary
 
 
 @dataclass(frozen=True)
@@ -24,11 +25,25 @@ class CheckedRun:
     directory: Path
     digests: tuple[str, ...]
     course_name: str
+    summary_bytes: bytes
     tuning_json: str | None = None
 
 
 def _digest(path):
     return sha256(path.read_bytes()).hexdigest()
+
+
+def _summary_snapshot(course):
+    """Validate planning evidence, permitting only the flight-enable flag change."""
+    path = course.with_name("summary.json")
+    if not path.is_file():
+        raise ValueError("Keep course.json and summary.json together; re-export the selected plan if its summary is missing")
+    content = path.read_bytes()
+    summary = json.loads(content.decode("utf-8-sig"))
+    planned_course = json.loads(course.read_text(encoding="utf-8-sig"))
+    planned_course["enabled_for_flight"] = False
+    validate_plan_summary(planned_course, summary)
+    return content
 
 
 def new_attempt(directory):
@@ -167,6 +182,7 @@ def dry_run(runner, course, python, directory, journal, *, tuning=None):
     """Validate the exact course with the flight tool, without opening a radio."""
     runner, course, python, directory = _files(runner, course, python, directory)
     before = tuple(_digest(path) for path in (runner, course, python))
+    summary_bytes = _summary_snapshot(course)
     name = json.loads(course.read_text(encoding="utf-8-sig"))["course_name"]
     tuning_json = None if tuning is None else json.dumps(validate_tuning(tuning), sort_keys=True)
     arguments = [str(python), "-u", "-c", _BOOTSTRAP, str(runner), "--config", str(course), "--dry-run"]
@@ -179,9 +195,17 @@ def dry_run(runner, course, python, directory, journal, *, tuning=None):
     _run(arguments, directory, journal, timeout_s=60)
     if tuning_json is not None and "TUNING PROTOCOL 1:" not in Path(journal).read_text(encoding="utf-8"):
         raise ValueError("Flight tool did not confirm tuning support; use an updated tested runner or untuned fallback")
+    course_data = json.loads(course.read_text(encoding="utf-8-sig"))
+    if "trajectory_version" in course_data:
+        version = course_data["trajectory_version"]
+        if (type(version) is not int or version != 1
+                or "TRAJECTORY PROTOCOL 1:" not in Path(journal).read_text(encoding="utf-8")):
+            raise ValueError("Flight tool did not confirm trajectory support; use the updated common runner")
     if before != tuple(_digest(path) for path in (runner, course, python)):
         raise ValueError("Runner, course or interpreter changed during the dry run.")
-    return CheckedRun(runner, course, python, directory, before, name, tuning_json)
+    if summary_bytes != _summary_snapshot(course):
+        raise ValueError("Plan summary changed during the dry run; repeat the dry run.")
+    return CheckedRun(runner, course, python, directory, before, name, summary_bytes, tuning_json)
 
 
 def fly(checked, uri, telemetry, journal, *, ready=False, confirm=input, tuning=None):
@@ -198,9 +222,10 @@ def fly(checked, uri, telemetry, journal, *, ready=False, confirm=input, tuning=
     telemetry = Path(telemetry).resolve()
     journal = Path(journal).resolve()
     archived_course = telemetry.with_suffix(".course.json")
+    archived_summary = telemetry.with_suffix(".summary.json")
     tuning_path = telemetry.with_suffix(".tuning.json")
     receipt_path = telemetry.with_suffix(".parameters.json")
-    for path in (telemetry, journal, archived_course):
+    for path in (telemetry, journal, archived_course, archived_summary):
         if path.exists():
             raise FileExistsError(f"Choose a new attempt; file already exists: {path}")
     if tuning_json is not None and (tuning_path.exists() or receipt_path.exists()):
@@ -215,10 +240,22 @@ def fly(checked, uri, telemetry, journal, *, ready=False, confirm=input, tuning=
         raise ValueError("Runner, course or interpreter changed; repeat the dry run.")
     if sha256(course_bytes).hexdigest() != checked.digests[1]:
         raise ValueError("Course changed while preparing the attempt; repeat the dry run.")
+    if checked.summary_bytes != _summary_snapshot(checked.course):
+        raise ValueError("Plan summary changed since the dry run; repeat the dry run.")
+    summary = json.loads(checked.summary_bytes.decode("utf-8-sig"))
+    # Keep the planned-course binding and add exact attempt-file hashes. The
+    # enabled flight copy differs from the planner export only in that flag.
+    summary["flown_course_sha256"] = sha256(course_bytes).hexdigest()
+    summary["tuning_sha256"] = (None if tuning_json is None
+                                else sha256(tuning_json.encode("utf-8")).hexdigest())
     telemetry.parent.mkdir(parents=True, exist_ok=True)
+    with archived_summary.open("x", encoding="utf-8") as stream:
+        json.dump(summary, stream, indent=2, allow_nan=False)
+        stream.write("\n")
     with archived_course.open("xb") as stream:
         stream.write(course_bytes)
     print("Exact flown course:", archived_course, flush=True)
+    print("Planning provenance:", archived_summary, flush=True)
     print("Recording:", telemetry, flush=True)
     arguments = [str(checked.python), "-u", "-c", _BOOTSTRAP, str(checked.runner),
                  "--config", str(archived_course), "--fly", "--uri", uri, "--log", str(telemetry)]

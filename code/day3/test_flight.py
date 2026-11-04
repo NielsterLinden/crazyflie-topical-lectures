@@ -1,6 +1,7 @@
 """Offline tests for notebook flight handoffs; no radio or motors are used."""
 
 from contextlib import redirect_stdout
+from hashlib import sha256
 import io
 import json
 import os
@@ -12,6 +13,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from . import flight
+from .notebook_tools import _course_digest
 
 
 class FlightNotebookTests(unittest.TestCase):
@@ -31,6 +33,7 @@ class FlightNotebookTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.course = self.root / "course.json"
         self.course.write_text(json.dumps(dict(course_name="test-course", enabled_for_flight=True)))
+        self.save_summary(self.course)
         self.runner = self.root / "runner.py"
         self.runner.write_text('''import sys
 if "--fly" in sys.argv:
@@ -40,6 +43,15 @@ if "--fly" in sys.argv:
 else:
     print("mock dry run")
 ''')
+
+    def save_summary(self, course):
+        planned = json.loads(course.read_text(encoding="utf-8-sig"))
+        planned["enabled_for_flight"] = False
+        summary = dict(course_sha256=_course_digest(planned),
+                       provenance=dict(source_surveys=["gate.json"],
+                                       clearance_budget={"required_margin_m": .1}))
+        course.with_name("summary.json").write_text(json.dumps(summary), encoding="utf-8-sig")
+        return summary
 
     def check(self):
         return flight.dry_run(self.runner, self.course, sys.executable,
@@ -121,6 +133,42 @@ else:
         self.assertEqual(first_report.read_bytes(), original_report)
         self.assertEqual(len(list((self.root / "checks").glob("attempt-*/console.txt"))), 4)
 
+    def test_example_cells_generate_matching_evidence_before_radio_free_dry_run(self):
+        notebook = json.loads(Path(__file__).with_name("03_flight.ipynb").read_text())
+        cells = {cell["id"]: "".join(cell["source"]) for cell in notebook["cells"]}
+        ids = [cell["id"] for cell in notebook["cells"]]
+        self.assertLess(ids.index("flight-example"), ids.index("flight-connect"))
+        prepare = cells["flight-example"].replace("prepare_example = False", "prepare_example = True")
+        check = cells["flight-tool"].replace("course_json = None", "course_json = example_course_json")
+        check = check.replace("run_dry_check = False", "run_dry_check = True")
+        paths = dict(runner=self.runner, runner_python=Path(sys.executable), runner_directory=self.root)
+        for name, path in paths.items():
+            check = check.replace(f"{name} = None", f"{name} = Path({str(path)!r})")
+        scope = dict(Path=Path, root=Path(__file__).resolve().parents[2], output=self.root,
+                     new_attempt=flight.new_attempt, dry_run=flight.dry_run,
+                     tuning_spec=object(), checked_run=object())
+        previous = None
+        for _ in range(2):
+            with redirect_stdout(io.StringIO()):
+                exec(prepare, scope)
+                exec(check, scope)
+            course = scope["example_course_json"]
+            summary = json.loads(course.with_name("summary.json").read_text())
+            self.assertFalse(json.loads(course.read_text())["enabled_for_flight"])
+            self.assertEqual(summary["course_sha256"], _course_digest(json.loads(course.read_text())))
+            self.assertEqual(summary["provenance"]["geometry_status"], "synthetic")
+            self.assertEqual(scope["checked_run"].summary_bytes, course.with_name("summary.json").read_bytes())
+            self.assertIsNone(scope["tuning_spec"])
+            if previous is not None:
+                self.assertNotEqual(course, previous)
+                self.assertTrue(previous.is_file())
+            previous = course
+        scope["root"] = self.root / "missing-project"
+        with self.assertRaises(FileNotFoundError):
+            exec(prepare, scope)
+        self.assertIsNone(scope["example_course_json"])
+        self.assertIsNone(scope["checked_run"])
+
     def test_actual_runner_uses_archived_bytes_and_replanning_does_not_replace_them(self):
         self.runner.write_text('''import json, sys
 from pathlib import Path
@@ -142,8 +190,16 @@ if "--fly" in sys.argv:
         evidence = json.loads(telemetry.read_text())
         self.assertEqual(Path(evidence["course_path"]), archived)
         self.assertEqual(archived.read_bytes(), original)
+        summary_path = telemetry.with_suffix(".summary.json")
+        summary = json.loads(summary_path.read_text())
+        self.assertEqual(summary["provenance"], json.loads(checked.summary_bytes.decode("utf-8-sig"))["provenance"])
+        self.assertEqual(summary["flown_course_sha256"], sha256(original).hexdigest())
+        self.assertIsNone(summary["tuning_sha256"])
+        summary_bytes = summary_path.read_bytes()
         self.course.write_text('{"course_name": "replanned"}')
+        self.course.with_name("summary.json").write_text("changed planning evidence")
         self.assertEqual(archived.read_bytes(), original)
+        self.assertEqual(summary_path.read_bytes(), summary_bytes)
         with patch.object(flight, "_run") as launch:
             with self.assertRaises(FileExistsError):
                 flight.fly(checked, "radio://0/9/2M/E7E7E7E701", telemetry,
@@ -170,7 +226,69 @@ if "--fly" in sys.argv:
                         flight.fly(checked, "radio://0/9/2M/E7E7E7E701", telemetry,
                                    attempt / "console.txt", ready=True, confirm=lambda _: "test-course")
                 self.assertEqual(archive.read_bytes(), expected)
+                summary_path = telemetry.with_suffix(".summary.json")
+                summary = json.loads(summary_path.read_text())
+                self.assertEqual(summary["flown_course_sha256"], sha256(expected).hexdigest())
+                self.assertEqual(summary["provenance"], json.loads(checked.summary_bytes.decode("utf-8-sig"))["provenance"])
                 self.assertIn(str(archive), output.getvalue())
+                self.assertIn(str(summary_path), output.getvalue())
+
+    def test_summary_is_required_and_bound_before_dry_run(self):
+        path = self.course.with_name("summary.json")
+        original = path.read_bytes()
+        for content in (None, b"invalid JSON", b"{}", b"[]"):
+            with self.subTest(content=content), patch.object(flight, "_run") as launch:
+                if content is None:
+                    path.unlink()
+                else:
+                    path.write_bytes(content)
+                with self.assertRaises(ValueError):
+                    self.check()
+                launch.assert_not_called()
+        path.write_bytes(original)
+        course = json.loads(self.course.read_text())
+        course["course_name"] = "another-course"
+        self.course.write_text(json.dumps(course))
+        with patch.object(flight, "_run") as launch:
+            with self.assertRaisesRegex(ValueError, "summary does not match"):
+                self.check()
+            launch.assert_not_called()
+
+    def test_summary_changes_during_dry_run_or_confirmation_block_launch(self):
+        path = self.course.with_name("summary.json")
+        original = path.read_bytes()
+
+        def change_summary(*_args, **_kwargs):
+            summary = json.loads(original.decode("utf-8-sig"))
+            summary["provenance"]["source_surveys"] = ["changed.json"]
+            path.write_text(json.dumps(summary))
+            return "test-course"
+
+        with patch.object(flight, "_run", side_effect=change_summary):
+            with self.assertRaisesRegex(ValueError, "summary changed during"):
+                self.check()
+        path.write_bytes(original)
+        with redirect_stdout(io.StringIO()):
+            checked = self.check()
+        with patch.object(flight, "_run") as launch:
+            with self.assertRaisesRegex(ValueError, "summary changed since"):
+                flight.fly(checked, "radio://0/9/2M/E7E7E7E701", self.root / "race.csv",
+                           self.root / "flight.txt", ready=True, confirm=change_summary)
+            launch.assert_not_called()
+        self.assertFalse((self.root / "race.course.json").exists())
+        self.assertFalse((self.root / "race.summary.json").exists())
+
+    def test_existing_summary_archive_is_never_overwritten(self):
+        with redirect_stdout(io.StringIO()):
+            checked = self.check()
+        path = self.root / "race.summary.json"
+        path.write_bytes(b"earlier attempt")
+        with patch.object(flight, "_run") as launch:
+            with self.assertRaises(FileExistsError):
+                flight.fly(checked, "radio://0/9/2M/E7E7E7E701", self.root / "race.csv",
+                           self.root / "flight.txt", ready=True)
+            launch.assert_not_called()
+        self.assertEqual(path.read_bytes(), b"earlier attempt")
 
     def test_course_changed_during_confirmation_is_not_archived_or_flown(self):
         with redirect_stdout(io.StringIO()):
@@ -322,6 +440,18 @@ except KeyboardInterrupt:
                 dry.assert_not_called()
                 fly.assert_not_called()
                 connect.assert_not_called()
+
+    def test_versioned_course_requires_shared_trajectory_support_before_flight(self):
+        course = self.root / "versioned.json"
+        course.write_text(json.dumps(dict(course_name="test", enabled_for_flight=False, trajectory_version=1)))
+        self.save_summary(course)
+        self.runner.write_text("print('old runner')\n")
+        with redirect_stdout(io.StringIO()), self.assertRaisesRegex(ValueError, "trajectory support"):
+            flight.dry_run(self.runner, course, sys.executable, self.root, self.root / "old-protocol.txt")
+        self.runner.write_text("print('TRAJECTORY PROTOCOL 1: shared planner')\n")
+        with redirect_stdout(io.StringIO()):
+            checked = flight.dry_run(self.runner, course, sys.executable, self.root, self.root / "new-protocol.txt")
+        self.assertEqual(checked.course_name, "test")
 
     def test_native_recording_analysis_has_inline_figures_and_metrics(self):
         from race_common.flight_analysis import analyze_recording

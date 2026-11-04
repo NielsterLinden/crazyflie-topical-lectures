@@ -6,9 +6,9 @@ gates, then [02_trajectory.ipynb](02_trajectory.ipynb) to plan and analyse the r
 Use [03_flight.ipynb](03_flight.ipynb) on the flight laptop for the tested
 runner's dry run and flight launch, with explicit readiness and course confirmation.
 
-Use Day 1 tracking and Day 2 covariance for margins. Compare one bounded PID-gain
-change on the same course/speed, then analyse the recordings. Onboard Kalman
-tuning is optional. Shared recordings and the labelled example work offline.
+Use Day 1 tracking and Day 2 covariance for margins. Submit baseline and optimized
+course/tuning configurations for the common runner; compare one bounded PID-gain
+change at fixed course/speed. Kalman tuning is optional. Saved examples work offline.
 For surveying, set `LABEL` to your drone's sticker label and confirm the blinking
 drone. Capture runs in the notebook after verified firmware stop, with a timed
 preparation interval and trace. Saved recordings and simulated outlines work offline.
