@@ -2,8 +2,8 @@
 
 [Programme](../README.md) | [Day 1](day_1_control.md) | [Day 2](day_2_kalman.md)
 
-Combine tracking and uncertainty results to choose margins, compare controller
-settings and assess race performance.
+Submit baseline and tuned trajectory configurations for the common runner.
+Compare tracking, uncertainty and performance.
 
 Use the same Jupyter environment as Days 1-2. The working instructions are in
 the [survey](../code/day3/01_survey.ipynb),

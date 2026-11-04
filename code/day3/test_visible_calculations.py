@@ -17,7 +17,7 @@ import numpy as np
 from race_common.geometry import plane_basis
 from trajectory_tools.course import construct_course, read_json
 from trajectory_tools.preview import plot_trajectory
-from .notebook_tools import clearance_budget, plan_course, checked_plan
+from .notebook_tools import clearance_budget, plan_course, plan_race, checked_plan
 from .uncertainty import run
 
 
@@ -35,6 +35,54 @@ def notebook_function(source, name):
 
 
 class VisibleCalculationTests(unittest.TestCase):
+    def test_visible_turning_velocity_calculation_matches_the_planned_reference(self):
+        notebook = cells("02_trajectory.ipynb")
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as temporary, redirect_stdout(output):
+            setup = notebook["day3-setup"].replace('root / "code/day3/data" / run_id',
+                                                  f'Path({temporary!r}) / run_id')
+            namespace = dict(__name__="__main__")
+            exec(setup, namespace)
+            namespace["display"] = lambda _: None
+            exec(notebook["day3-template"], namespace)
+            source = notebook["day3-surveys"].replace('conservative_mode = True', 'conservative_mode = False')
+            source = source.replace('turning_waypoints = {}',
+                                    'turning_waypoints = {1: [{"position": [1.7, .4, .7], "velocity": [0, -.1, 0]}]}')
+            exec(source, namespace)
+            exec(notebook["day3-baseline"], namespace)
+            row = namespace["plan_summary"]["turning_details"][0]
+            np.testing.assert_allclose(namespace["requested_velocity"], [0, -.1, 0])
+            np.testing.assert_allclose(namespace["resulting_velocity"], row["planned_velocity_m_s"], atol=1e-12)
+            self.assertGreater(namespace["baseline_trajectory"].time_scale, 1.)
+        self.assertIn("Turning velocity [m/s], requested / resulting:", output.getvalue())
+
+    def test_visible_crossing_choices_drive_geometry_and_failed_edits_clear_the_course(self):
+        notebook = cells("02_trajectory.ipynb")
+        with tempfile.TemporaryDirectory() as temporary, redirect_stdout(io.StringIO()):
+            setup = notebook["day3-setup"].replace('root / "code/day3/data" / run_id',
+                                                  f'Path({temporary!r}) / run_id')
+            namespace = dict(__name__="__main__")
+            exec(setup, namespace)
+            namespace["display"] = lambda _: None
+            exec(notebook["day3-template"], namespace)
+            source = notebook["day3-surveys"].replace('gate_speeds = {}',
+                                                      'gate_speeds = {"forward": .4, "return": .25}')
+            source = source.replace('conservative_mode = True', 'conservative_mode = False')
+            source = source.replace('crossing_offsets = {}', 'crossing_offsets = {"forward": [0, .05, 0]}')
+            source = source.replace('turning_waypoints = {}', 'turning_waypoints = {1: [[1.6, .4, .7]]}')
+            exec(source, namespace)
+            exec(notebook["day3-gate-geometry"], namespace)
+            np.testing.assert_allclose(namespace["crossing_point"], [1, .05, .7])
+            self.assertAlmostEqual(namespace["radial_space"], .25)
+            exec(notebook["day3-baseline"], namespace)
+            details = namespace["baseline_plan"].summary()["crossing_details"]
+            self.assertEqual([row["requested_speed_m_s"] for row in details], [.4, .25, .4, .25])
+            with self.assertRaisesRegex(ValueError, "aperture clearance"):
+                exec(source.replace('[0, .05, 0]', '[0, .31, 0]'), namespace)
+            self.assertIsNone(namespace["course"])
+            self.assertIsNone(namespace["baseline_plan"])
+            self.assertIsNone(namespace["candidate_plan"])
+
     def test_visible_margin_matches_projection_for_correlated_and_rotated_covariance(self):
         calculate = notebook_function(cells("02_trajectory.ipynb")["day3-baseline"], "our_gate_margin")
         covariance = np.array([[.0004, .0001, 0], [.0001, .0009, .0002], [0, .0002, .0016]])
@@ -53,7 +101,9 @@ class VisibleCalculationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary, redirect_stdout(io.StringIO()):
             namespace = dict(np=np, deepcopy=deepcopy, course=course, course_provenance={},
                              output=Path(temporary), clearance_budget=clearance_budget,
-                             plan_course=plan_course, checked_plan=checked_plan,
+                             plan_course=plan_course, plan_race=plan_race, checked_plan=checked_plan,
+                             gate_speeds={}, crossing_offsets={}, turning_waypoints={},
+                             conservative_mode=False, target_speed_m_s=.3,
                              plot_trajectory=plot_trajectory, plt=plt, display=lambda _: None)
             exec(source, namespace)
             baseline_margin = namespace["baseline_plan"].course["limits"]["clearance_margin_m"]

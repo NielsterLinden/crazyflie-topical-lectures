@@ -2,6 +2,7 @@
 
 from contextlib import redirect_stdout
 from copy import deepcopy
+from hashlib import sha256
 import io
 import json
 from pathlib import Path
@@ -16,7 +17,8 @@ from unittest.mock import Mock, patch
 
 from race_common import tuning as backend
 from . import flight
-from .tuning import make_tuning
+from .notebook_tools import _course_digest, load_plan, plan_race, save_plan
+from .tuning import export_race_pair, make_tuning, race_tuning
 
 
 URI = "radio://0/9/2M/E7E7E7E701"
@@ -82,6 +84,15 @@ class TuningTests(unittest.TestCase):
         self.addCleanup(self.params.close)
         self.cf = SimpleNamespace(param=self.params)
 
+    def save_summary(self, course):
+        planned = json.loads(course.read_text(encoding="utf-8-sig"))
+        planned["enabled_for_flight"] = False
+        summary = dict(course_sha256=_course_digest(planned), provenance=dict(
+            source_surveys=["gate.json"], clearance_budget={"required_margin_m": .1}))
+        path = course.with_name("summary.json")
+        path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8-sig")
+        return path
+
     def test_only_one_family_and_agreed_bounded_factors_are_accepted(self):
         self.assertEqual(backend.validate_tuning(profile(), URI)["factor"], 1.05)
         for field, value in (("mode", "attitude"), ("factor", 1.2), ("factor", float("nan")),
@@ -94,6 +105,229 @@ class TuningTests(unittest.TestCase):
         data["baseline"]["pid_attitude.roll_kp"] = 10
         with self.assertRaises(ValueError):
             backend.validate_tuning(data)
+
+    def test_two_submissions_preserve_course_and_share_the_same_baseline(self):
+        course = self.root / "course.json"
+        original = b'{"course_name": "team-course", "enabled_for_flight": false}\n'
+        course.write_bytes(original)
+        summary = self.save_summary(course).read_bytes()
+        for mode in ("controller", "kalman"):
+            candidate = profile(mode)
+            before = deepcopy(candidate)
+            pair = export_race_pair(course, candidate, self.root / mode)
+            self.assertEqual(candidate, before)
+            for paths in pair.values():
+                self.assertEqual(paths["course"].read_bytes(), original)
+                self.assertEqual((paths["course"].parent / "summary.json").read_bytes(), summary)
+            baseline = backend.load_tuning(pair["baseline"]["tuning"], URI)
+            optimized = backend.load_tuning(pair["optimized"]["tuning"], URI)
+            self.assertEqual(baseline["mode"], "baseline")
+            self.assertEqual(backend.selected_parameters(baseline), ())
+            self.assertEqual(baseline["baseline"], optimized["baseline"])
+            self.assertEqual(optimized, candidate)
+            self.assertFalse(json.loads(pair["baseline"]["course"].read_text())["enabled_for_flight"])
+            with self.assertRaises(FileExistsError):
+                export_race_pair(course, candidate, self.root / mode)
+
+    def test_submission_export_rejects_unchanged_or_unbounded_candidates_before_writing(self):
+        course = self.root / "course.json"
+        course.write_text('{"course_name": "team-course"}')
+        for candidate in (profile(factor=1.), profile(factor=2.),
+                          dict(profile(), mode="baseline", factor=1., factor_range=None, range_checked=False)):
+            destination = self.root / "rejected"
+            with self.assertRaises(ValueError):
+                export_race_pair(course, candidate, destination)
+            self.assertFalse(destination.exists())
+
+    def test_exported_baseline_checks_values_without_writing_and_candidate_restores(self):
+        course = self.root / "course.json"
+        course.write_text('{"course_name": "team-course"}')
+        self.save_summary(course)
+        pair = export_race_pair(course, profile(), self.root / "deliverables")
+        for name, paths in pair.items():
+            data = backend.load_tuning(paths["tuning"], URI)
+            before = len(self.params.writes)
+            with backend.temporary_tuning(self.cf, data, URI, self.root / (name + ".receipt.json")):
+                expected = 2. if name == "baseline" else 2.1
+                self.assertAlmostEqual(self.params.values["posCtlPid.xKp"], expected)
+            if name == "baseline":
+                self.assertEqual(len(self.params.writes), before)
+            self.assertEqual(self.params.values["posCtlPid.xKp"], 2.)
+
+    def test_direct_export_preserves_evidence_and_both_submissions_pass_dry_run(self):
+        template = json.loads((Path(__file__).resolve().parents[2] / "examples/course.shuttle.synthetic.json").read_text())
+        plan = plan_race(template, provenance=dict(
+            source_surveys=["measured-gate.json"], clearance_budget={"required_margin_m": .1}))
+        source = self.root / "selected"
+        save_plan(plan, source)
+        summary_path = source / "summary.json"
+        summary_path.write_text(summary_path.read_text(), encoding="utf-8-sig")
+        summary = summary_path.read_bytes()
+        runner = self.root / "runner.py"
+        runner.write_text("print('TUNING PROTOCOL 1: test')\nprint('TRAJECTORY PROTOCOL 1: test')\n")
+        for enabled in (False, True):
+            course = dict(plan.course, enabled_for_flight=enabled)
+            (source / "course.json").write_text(json.dumps(course), encoding="utf-8-sig")
+            pair = export_race_pair(source / "course.json", profile(), self.root / f"pair-{enabled}")
+            for name, paths in pair.items():
+                with self.subTest(enabled=enabled, submission=name), redirect_stdout(io.StringIO()):
+                    tuning = backend.load_tuning(paths["tuning"], URI)
+                    checked = flight.dry_run(runner, paths["course"], sys.executable, self.root,
+                                             paths["course"].parent / "dry.txt", tuning=tuning)
+                    self.assertEqual(checked.summary_bytes, summary)
+                    self.assertEqual(json.loads(paths["course"].read_text(encoding="utf-8-sig")), course)
+                    self.assertEqual(json.loads(checked.summary_bytes.decode("utf-8-sig"))["provenance"],
+                                     json.loads(summary.decode("utf-8-sig"))["provenance"])
+        (source / "summary.json").write_text("later planning changes")
+        for paths in pair.values():
+            self.assertEqual((paths["course"].parent / "summary.json").read_bytes(), summary)
+
+    def test_direct_export_rejects_missing_malformed_or_mismatched_evidence_before_writing(self):
+        course = self.root / "course.json"
+        course.write_text('{"course_name": "team-course", "enabled_for_flight": false}')
+        summary_path = self.save_summary(course)
+        summary = json.loads(summary_path.read_text(encoding="utf-8-sig"))
+        for invalid in (None, "invalid JSON", "[]", "{}",
+                        json.dumps(dict(summary, course_sha256="wrong")),
+                        json.dumps(dict(summary, provenance=[]))):
+            with self.subTest(summary=invalid):
+                if invalid is None:
+                    summary_path.unlink()
+                else:
+                    summary_path.write_text(invalid)
+                destination = self.root / "rejected"
+                with self.assertRaises(ValueError):
+                    export_race_pair(course, profile(), destination)
+                self.assertFalse(destination.exists())
+        summary_path.write_text(json.dumps(summary))
+        changed = dict(json.loads(course.read_text()), yaw_deg=30)
+        course.write_text(json.dumps(changed))
+        with self.assertRaisesRegex(ValueError, "summary does not match"):
+            export_race_pair(course, profile(), self.root / "changed")
+        self.assertFalse((self.root / "changed").exists())
+        with self.assertRaisesRegex(ValueError, "in-memory course needs"):
+            export_race_pair(changed, profile(), self.root / "no-evidence")
+        self.assertFalse((self.root / "no-evidence").exists())
+
+    def test_notebook_handover_cell_exports_both_common_runner_inputs(self):
+        notebook = json.loads(Path(__file__).with_name("03_flight.ipynb").read_text())
+        source = next("".join(cell["source"]) for cell in notebook["cells"]
+                      if cell["id"] == "flight-handover")
+        template = Path(__file__).resolve().parents[2] / "examples/course.shuttle.synthetic.json"
+        evidence = dict(source_surveys=["gate.json"], source_template="setup.json",
+                        clearance_budget={"required_margin_m": .1},
+                        crossing_order=["forward:+", "return:+"], laps=2)
+        plan = plan_race(json.loads(template.read_text()), provenance=evidence)
+        save_plan(plan, self.root / "selected")
+        (self.root / "selected").rename(self.root / "moved")
+        course = self.root / "moved" / "course.json"
+        baseline = self.root / "baseline.json"
+        baseline.write_text(json.dumps(dict(uri=URI, parameters=BASELINE, motor_stop_check={"value": 1})))
+        source = source.replace("export_submissions = False", "export_submissions = True")
+        source = source.replace("planned_course = None", f"planned_course = Path({str(course)!r})")
+        scope = dict(Path=Path, output=self.root, baseline_path=baseline, load_plan=load_plan,
+                     tuning_choices=dict(controller={"position_p_xy": 1.05},
+                                         factor_range=[.95, 1.05], range_checked=True),
+                     new_attempt=flight.new_attempt, display=lambda _: None)
+        exec(source, scope)
+        self.assertEqual(set(scope["submissions"]), {"baseline", "optimized"})
+        for paths in scope["submissions"].values():
+            self.assertTrue(paths["course"].is_file())
+            backend.load_tuning(paths["tuning"], URI)
+            self.assertEqual(load_plan(paths["course"]).provenance, plan.provenance)
+            summary = json.loads((paths["course"].parent / "summary.json").read_text())
+            for key, value in evidence.items():
+                self.assertEqual(summary[key], value)
+
+    def test_race_configuration_binds_choices_and_exports_validated_trajectory_evidence(self):
+        baseline = self.root / "baseline.json"
+        baseline.write_text(json.dumps(dict(uri=URI, parameters=BASELINE, motor_stop_check={"value": 1})))
+        template = json.loads((Path(__file__).resolve().parents[2] / "examples/course.shuttle.synthetic.json").read_text())
+        plan = plan_race(template, speed=.4, conservative=False, provenance={"source_surveys": ["gate.json"]})
+        for mode, group in (("controller", "position_p_xy"), ("kalman", "acceleration_xy")):
+            choices = {mode: {group: 1.05}, "factor_range": [.95, 1.05], "range_checked": True}
+            race = plan.configure_race(baseline=baseline, **choices)
+            choices[mode][group] = 99
+            summary = race.summary()
+            self.assertEqual(summary["drone_uri"], URI)
+            self.assertEqual(summary["mode"], mode)
+            for row in summary["parameter_changes"]:
+                self.assertEqual(row["baseline"], BASELINE[row["parameter"]])
+                self.assertEqual(row["optimized"], row["baseline"] * 1.05)
+            pair = race.export(self.root / mode)
+            self.assertEqual(pair["baseline"]["course"].read_bytes(), pair["optimized"]["course"].read_bytes())
+            for name, paths in pair.items():
+                tuning = backend.load_tuning(paths["tuning"], URI)
+                self.assertEqual(tuning["baseline"], BASELINE)
+                self.assertEqual(tuning["mode"], "baseline" if name == "baseline" else mode)
+                saved_summary = json.loads((paths["course"].parent / "summary.json").read_text())
+                self.assertEqual(saved_summary["source_surveys"], ["gate.json"])
+                self.assertTrue((paths["course"].parent / "trajectory.csv").is_file())
+                self.assertEqual(json.loads(paths["course"].read_text()), plan.course)
+        plan.course["yaw_deg"] += 1
+        with self.assertRaisesRegex(ValueError, "changed since validation"):
+            race.export(self.root / "stale")
+        self.assertFalse((self.root / "stale").exists())
+
+    def test_race_api_rejects_ambiguous_groups_missing_acknowledgement_and_unbounded_changes(self):
+        baseline = self.root / "baseline.json"
+        baseline.write_text(json.dumps(dict(uri=URI, parameters=BASELINE, motor_stop_check={"value": 1})))
+        arguments = dict(factor_range=[.95, 1.05], range_checked=True)
+        for choices in ({}, dict(controller={}), dict(controller={"unknown": 1.05}),
+                        dict(controller={"position_p_xy": 1.05}, kalman={"acceleration_xy": 1.05}),
+                        dict(controller={"position_p_xy": 1.05, "velocity_p_xy": 1.05}),
+                        dict(controller={"position_p_xy": 1.}), dict(controller={"position_p_xy": 3.})):
+            with self.subTest(choices=choices), self.assertRaises(ValueError):
+                race_tuning(baseline, **choices, **arguments)
+        with self.assertRaisesRegex(ValueError, "explicitly check"):
+            race_tuning(baseline, controller={"position_p_xy": 1.05},
+                        factor_range=[.95, 1.05], range_checked=False)
+
+    def test_race_api_convenience_export_and_failed_notebook_selection(self):
+        baseline = self.root / "baseline.json"
+        baseline.write_text(json.dumps(dict(uri=URI, parameters=BASELINE, motor_stop_check={"value": 1})))
+        template = json.loads((Path(__file__).resolve().parents[2] / "examples/course.shuttle.synthetic.json").read_text())
+        pair = plan_race(template).export_race_pair(
+            baseline=baseline, controller={"position_p_xy": 1.05},
+            factor_range=[.95, 1.05], range_checked=True, output=self.root / "convenience")
+        self.assertEqual(set(pair), {"baseline", "optimized"})
+        notebook = json.loads(Path(__file__).with_name("03_flight.ipynb").read_text())
+        source = next("".join(cell["source"]) for cell in notebook["cells"] if cell["id"] == "flight-handover")
+        source = source.replace("planned_course = None", f"planned_course = Path({str(self.root / 'missing.json')!r})")
+        scope = dict(Path=Path, tuning_choices={"controller": {"position_p_xy": 1.05}},
+                     load_plan=load_plan, race_configuration=object(), submissions=object(), checked_run=object())
+        with self.assertRaises(FileNotFoundError):
+            exec(source, scope)
+        for name in ("race_configuration", "submissions", "checked_run"):
+            self.assertIsNone(scope[name])
+
+    def test_notebook_selects_course_and_tuning_together_and_rejects_another_drone(self):
+        course = self.root / "course.json"
+        course.write_text('{"course_name": "team-course", "enabled_for_flight": false}')
+        self.save_summary(course)
+        pair = export_race_pair(course, profile(), self.root / "pair")
+        notebook = json.loads(Path(__file__).with_name("03_flight.ipynb").read_text())
+        original = next("".join(cell["source"]) for cell in notebook["cells"] if cell["id"] == "flight-tool")
+        for name, paths in pair.items():
+            source = original.replace("run_dry_check = False", "run_dry_check = True")
+            for variable in ("runner", "runner_python", "runner_directory"):
+                source = source.replace(f"{variable} = None", f"{variable} = Path({str(self.root)!r})")
+            source = source.replace("submission_to_check = None",
+                                    f"submission_to_check = Path({str(paths['course'].parent)!r})")
+            check = Mock(return_value=object())
+            scope = dict(Path=Path, uri=URI, output=self.root, load_tuning=backend.load_tuning,
+                         new_attempt=flight.new_attempt, dry_run=check, tuning_spec=profile())
+            with redirect_stdout(io.StringIO()):
+                exec(source, scope)
+            self.assertEqual(scope["course_json"], paths["course"])
+            self.assertEqual(scope["tuning_spec"]["mode"], "baseline" if name == "baseline" else "controller")
+            self.assertEqual(check.call_args.kwargs["tuning"], scope["tuning_spec"])
+            scope["uri"] = URI + "0"
+            check.reset_mock()
+            with self.assertRaisesRegex(ValueError, "different drone"):
+                exec(source, scope)
+            check.assert_not_called()
+            self.assertIsNone(scope["checked_run"])
 
     def test_controller_and_optional_kalman_restore_delayed_writes(self):
         for mode in ("controller", "kalman"):
@@ -253,6 +487,11 @@ class TuningTests(unittest.TestCase):
     def test_parent_binds_and_archives_tuning_and_requires_runner_support(self):
         course = self.root / "course.json"
         course.write_text(json.dumps(dict(course_name="test", enabled_for_flight=True)))
+        planned = json.loads(course.read_text())
+        planned["enabled_for_flight"] = False
+        evidence = dict(source_surveys=["gate.json"], clearance_budget={"required_margin_m": .1})
+        (self.root / "summary.json").write_text(json.dumps(dict(
+            course_sha256=_course_digest(planned), provenance=evidence)))
         runner = self.root / "runner.py"
         runner.write_text('''import json, sys
 from pathlib import Path
@@ -283,6 +522,26 @@ if "--fly" in sys.argv:
                                   ready=True, confirm=lambda _: "test", tuning=profile())
         self.assertEqual(archived.read_bytes(), course.read_bytes())
         self.assertEqual(json.loads((self.root / "race.tuning.json").read_text()), profile())
+        summary = json.loads((self.root / "race.summary.json").read_text())
+        self.assertEqual(summary["provenance"], evidence)
+        self.assertEqual(summary["flown_course_sha256"], sha256(archived.read_bytes()).hexdigest())
+        self.assertEqual(summary["tuning_sha256"], sha256((self.root / "race.tuning.json").read_bytes()).hexdigest())
+        for error in (RuntimeError("aborted"), KeyboardInterrupt()):
+            with self.subTest(error=type(error).__name__):
+                attempt = flight.new_attempt(self.root / "attempts")
+                telemetry = attempt / "race.csv"
+                with patch.object(flight, "_run", side_effect=error), \
+                        patch.object(flight, "_verify_restoration") as restored, \
+                        redirect_stdout(io.StringIO()):
+                    with self.assertRaises(type(error)):
+                        flight.fly(checked, URI, telemetry, attempt / "console.txt",
+                                   ready=True, confirm=lambda _: "test", tuning=profile())
+                restored.assert_called_once()
+                aborted_summary = json.loads(telemetry.with_suffix(".summary.json").read_text())
+                self.assertEqual(aborted_summary, summary)
+                self.assertEqual(telemetry.with_suffix(".course.json").read_bytes(), archived.read_bytes())
+                self.assertEqual(telemetry.with_suffix(".tuning.json").read_bytes(),
+                                 (self.root / "race.tuning.json").read_bytes())
         changed = profile(factor=1.02)
         with patch.object(flight, "_run") as launch:
             with self.assertRaisesRegex(ValueError, "Tuning changed"):

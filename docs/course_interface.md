@@ -6,7 +6,8 @@ The [synthetic course](../examples/course.synthetic.json) illustrates
 the format only: it is **not measured, qualified, or enabled for flight**.
 The [trajectory planner](trajectory_construction.md) builds and plots
 ordered measured crossings and laps without a radio. Its exported course uses
-this format; its polynomial reference is not automatically the runner's path.
+this format. With `trajectory_version: 1`, the common runner uses the same
+continuous reference as the notebook and confirms support during its dry run.
 
 ## Flight-tool handover
 
@@ -57,9 +58,13 @@ the request, original/applied/restored values and any failure. Restoration runs
 after landing/stop handling and before the connection closes. Failed restoration
 keeps the attempt unsuccessful; verify baseline values before another flight.
 
-**Before R2 acquisition**, try the example JSON in the flight notebook's dry run;
-teams can help each other check its structure. Fix format mismatches before
-surveying; successful validation does not qualify synthetic or measured geometry.
+**Before R2 acquisition**, run Setup and **R1: check the example before surveying**
+in the [flight notebook](../code/day3/03_flight.ipynb). Set `prepare_example=True`
+to generate a matched course/summary pair, then go directly to its dry-run section
+and use `course_json=example_course_json` with the runner paths from the run card.
+The cell clears tuning for this radio-free check. Keep the synthetic example
+flight-disabled. Teams can help each other fix format mismatches before surveying;
+successful validation does not qualify synthetic or measured geometry.
 If the flight program, limits or run card are missing, continue with simulation
 or recordings. Note what is missing and use a tested shared alternative
 or supplied recordings.
@@ -80,6 +85,10 @@ geometry ID and the physical point used for drone position in the survey record.
 | `start`, `finish` | Airborne trajectory endpoints; the runner checks compatibility between the resting location and takeoff start. |
 | `hoops` | Nonempty ordered list of crossing events; repeated passages through a physical gate each have their own entry. |
 | `limits` | Shared planning/monitoring settings listed below, checked by the team; preserve common limits when comparing strategies. |
+| `trajectory_version` | `1` selects the shared notebook planner, including per-crossing choices and turning waypoints. |
+| `turning_waypoints` | Optional records with `after_crossing` (0 before the first, N after crossing N), `positions_m` (world XYZ positions), and optional `velocities_m_s` (one world XYZ velocity per position; default zero). Slots count the full expanded race, including laps. |
+| `stop_at_approaches` | Boolean: stop at gate entry/exit points while crossing the opening with positive normal velocity. Enabled by the notebook's conservative defaults. |
+| `planning_profile`, `frame_depth_m` | Profile label and full gate/frame depth used to construct conservative bypasses; depth defaults to 0.10 m and can be overridden per gate. |
 
 Each crossing has a unique `name`, `centre`, unit `normal`, and positive `radius_m`.
 Crossing progresses from the negative to positive side of
@@ -87,6 +96,34 @@ Crossing progresses from the negative to positive side of
 with the opposite normal and a different event name. For multiple laps, explicitly
 repeat crossing events in order; there is no `laps` field. Link repeated event
 names to the physical gate ID in your separate survey output.
+
+The notebook API retains that ID as `gate_id`. Optional `speed_m_s` overrides
+the requested speed for one crossing. `crossing_offset_m` is an XYZ world-frame
+displacement from its physical centre, lying in the opening plane. Entry and
+exit follow the normal through this shifted point; the physical centre stays
+unchanged for clearance checks. Offsets retain the drone envelope and margin
+inside the conservative circular aperture, including for rectangles.
+
+The notebook's default conservative profile tightens motion limits and inserts
+stopped bypass waypoints within the shared volume. The file contains the complete
+resulting route; the runner follows that route with the same continuous checks.
+Surveys can inherit explicitly configured aperture/frame fields from shared
+`gate_defaults`; pose and aperture checks still apply to every crossing.
+
+Turning waypoints default to zero velocity; acceleration is zero at every
+quintic join. Custom profiles can specify bounded nonzero target velocities
+for fly-through turns. The shared
+planner validates their complete connecting curves against the flight volume,
+motion limits and finite gate footprints. Uniform time stretching can reduce
+all requested gate speeds; the notebook summary reports planned crossing speeds.
+It also records `turning_details`: requested and resulting reference velocities,
+waypoint times, positions and crossing slots. Global time stretching divides
+every requested velocity by the same factor. Nonzero targets need distinct
+control points; conflicting coincident knots are rejected before export.
+These velocities constrain the planned trajectory; the common runner streams
+position targets to the onboard controller.
+The runner rounds total duration upward by less than one command period for
+uniform setpoint ticks, preserving the path and tightening its motion bounds.
 
 For a rectangle, preserve full width/height/axes in `gates.json`, but use a
 conservative inscribed circle for this runner: `radius_m <= min(width, height)/2`.

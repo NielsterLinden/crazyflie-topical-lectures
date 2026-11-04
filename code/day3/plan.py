@@ -37,7 +37,10 @@ def main():
         figure.savefig(args.output / "preview.png", dpi=160)
         print(f"Planned duration {trajectory.duration_s:.2f} s (excludes takeoff/landing); {len(course['hoops'])} crossings")
         print(f"Wrote disabled course, trajectory CSV, summary and preview to {args.output}")
-        print("Preview only: the qualified runner may construct a different path. Check its own dry run before flight.")
+        if course.get("trajectory_version") == 1:
+            print("Shared trajectory version 1: verify support in the common runner's dry run before flight.")
+        else:
+            print("Preview only: the qualified runner may construct a different path. Check its own dry run before flight.")
         import matplotlib.pyplot as plt
         if args.show:
             plt.show()
