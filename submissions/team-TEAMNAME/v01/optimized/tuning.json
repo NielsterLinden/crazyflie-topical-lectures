@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "uri": "radio://0/30/2M/E7E7E7E704",
+  "baseline": {
+    "posCtlPid.xKp": 2.0,
+    "posCtlPid.yKp": 2.0,
+    "posCtlPid.xKi": 0.0,
+    "posCtlPid.yKi": 0.0,
+    "posCtlPid.xKd": 0.0,
+    "posCtlPid.yKd": 0.0,
+    "velCtlPid.vxKp": 25.0,
+    "velCtlPid.vyKp": 25.0,
+    "velCtlPid.vxKi": 1.0,
+    "velCtlPid.vyKi": 1.0,
+    "velCtlPid.vxKd": 0.0,
+    "velCtlPid.vyKd": 0.0,
+    "kalman.pNAcc_xy": 0.5,
+    "kalman.pNAcc_z": 1.0,
+    "kalman.pNVel": 0.0,
+    "kalman.pNPos": 0.0
+  },
+  "mode": "baseline",
+  "factor": 1.0,
+  "factor_range": null,
+  "range_checked": false
+}
