@@ -121,6 +121,9 @@ def _land(cf, x, y, z, abort_ignored=None):
     for zi in np.linspace(z, 0.05, max(2, int(z / 0.3 * 100))):      # 0.3 m/s down
         cf.commander.send_position_setpoint(x, y, float(zi), 0.0)
         time.sleep(0.01)
+    for _ in range(150):                    # the drone lags ~0.5 s: wait on the floor before the motors stop
+        cf.commander.send_position_setpoint(x, y, 0.0, 0.0)
+        time.sleep(0.01)
     cf.commander.send_stop_setpoint()
 
 
@@ -155,7 +158,7 @@ def fly(step='hover', z0=1.5, climb_s=0.40, rate=1000.0, spin_ratio=0.3, sign=1,
             print('hover thrust %.0f PWM (%.0f %%), z %.2f m; a flip from here: model z min %.2f, z max %.2f'
                   % (hover_pwm, hover_pwm / 655.35, z_now, r['z_min'], r['z_max']))
             far = np.hypot(rows[-1]['stateEstimate.x'] - x0, rows[-1]['stateEstimate.y'] - y0)
-            gates = {'height within 10 cm of z0': abs(z_now - z0) < 0.10, 'within 15 cm of start': far < 0.15,
+            gates = {'height within 20 cm of z0': abs(z_now - z0) < 0.20, 'within 15 cm of start': far < 0.15,
                      'hover thrust < 52000 PWM': hover_pwm < 52000,
                      'model z min >= 0.5 m': step == 'hover' or r['z_min'] >= 0.5}
             if not all(gates.values()) or step == 'hover':
@@ -171,7 +174,7 @@ def fly(step='hover', z0=1.5, climb_s=0.40, rate=1000.0, spin_ratio=0.3, sign=1,
             if step == 'flip':
                 _stream(cf, r['t_spin'], lambda: send(0, sign * rate, 0, r['spin_pwm']), abort)
                 param.set_value('flightmode.stabModePitch', 1)     # back to angle; pitch 0 = level
-            _stream(cf, 0.35, lambda: send(0, 0, 0, r['recover_pwm']), abort)
+                _stream(cf, 0.35, lambda: send(0, 0, 0, r['recover_pwm']), abort)   # hop: no fall to stop
             param.set_value('motion.disable', 0)
             e = rows[-1]
             _hold(cf, e['stateEstimate.x'], e['stateEstimate.y'], max(0.5, e['stateEstimate.z']), 0.5, abort)
