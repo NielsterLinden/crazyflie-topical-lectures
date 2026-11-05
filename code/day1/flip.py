@@ -93,7 +93,7 @@ def plan(**kw):
 def _log(scf, rows):
     conf = crazyflie.LogConfig(name='flip', period_in_ms=10)
     for n, t in (('stateEstimate.x', 'float'), ('stateEstimate.y', 'float'), ('stateEstimate.z', 'float'),
-                 ('stateEstimate.vz', 'float'), ('stabilizer.pitch', 'float'), ('stabilizer.thrust', 'float'),
+                 ('range.zrange', 'uint16_t'), ('stabilizer.pitch', 'float'), ('stabilizer.thrust', 'float'),
                  ('lighthouse.bsActive', 'uint16_t')):     # 26 bytes, the log-block limit
         conf.add_variable(n, t)
     conf.data_received_cb.add_callback(lambda ts, d, _c: rows.append(dict(d, t=time.monotonic())))

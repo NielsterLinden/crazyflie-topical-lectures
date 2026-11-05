@@ -74,7 +74,7 @@ def apply_tuning(cf, path):
                                           parameter_value(cf, name, expected=tun['baseline'][name] * tun['factor'])))
 
 
-def fly(path, room=3.0, vbat_min=3.9, laps=1, absolute=False, backflip=0, flip_z=1.7, tuning=None, lead=0.0, arm='', hold=2.0):
+def fly(path, room=3.0, vbat_min=3.9, laps=1, absolute=False, backflip=0, flip_z=1.7, tuning=None, lead=0.0, arm='', hold=2.0, lh_std=0.0):
     """FLIES the trajectory `laps` times. Enter lands. Lands too when the estimate leaves the path's box by 0.3 m.
     backflip=1 (race 2 finale, Lighthouse only): after a clean loop, 0.3 m/s to (0, 0, flip_z), hold 2 s, flip.fly's
     gates + flip, land. Skipped after a fence trip or Enter; the hover-thrust gate stands in for vbat in flight."""
@@ -91,6 +91,11 @@ def fly(path, room=3.0, vbat_min=3.9, laps=1, absolute=False, backflip=0, flip_z
         cf = scf.cf
         if tuning:
             apply_tuning(cf, tuning)
+        if lh_std:                      # trust Lighthouse more than the height sensor (it sees hoop rims); reboot restores
+            cf.param.set_value('lighthouse.sweepStd', lh_std)
+            cf.param.set_value('lighthouse.sweepStd2', 2.5 * lh_std)
+            time.sleep(0.3)
+            print('lighthouse sweepStd', cf.param.get_value('lighthouse.sweepStd'), 'sweepStd2', cf.param.get_value('lighthouse.sweepStd2'))
         if arm:                         # checked and connected; take off within ~2 s once the file `arm` appears
             go, t_arm = __import__('pathlib').Path(arm), time.monotonic()
             go.unlink(missing_ok=True)
