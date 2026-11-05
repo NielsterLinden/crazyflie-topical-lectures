@@ -1,0 +1,196 @@
+{
+  "course_name": "race2-hoops-321",
+  "enabled_for_flight": false,
+  "uri_environment_variable": "CF_URI",
+  "yaw_deg": 0.0,
+  "start": [
+    0.0,
+    0.0,
+    1.0
+  ],
+  "finish": [
+    1.04,
+    1.142,
+    0.82
+  ],
+  "hoops": [
+    {
+      "name": "hoop-3-pass1",
+      "centre": [
+        1.039892,
+        0.541558,
+        0.819525
+      ],
+      "normal": [
+        -0.052387,
+        0.996416,
+        -0.066407
+      ],
+      "radius_m": 0.468024
+    },
+    {
+      "name": "hoop-2-pass2",
+      "centre": [
+        -0.504336,
+        -0.784182,
+        0.425246
+      ],
+      "normal": [
+        0.99775,
+        -0.033526,
+        0.058068
+      ],
+      "radius_m": 0.404494
+    },
+    {
+      "name": "hoop-1-pass3",
+      "centre": [
+        1.345699,
+        -1.347254,
+        0.953794
+      ],
+      "normal": [
+        0.023101,
+        -0.043957,
+        0.998766
+      ],
+      "radius_m": 0.315092
+    },
+    {
+      "name": "hoop-3-pass4",
+      "centre": [
+        1.039892,
+        0.541558,
+        0.819525
+      ],
+      "normal": [
+        -0.052387,
+        0.996416,
+        -0.066407
+      ],
+      "radius_m": 0.468024
+    },
+    {
+      "name": "hoop-2-pass5",
+      "centre": [
+        -0.504336,
+        -0.784182,
+        0.425246
+      ],
+      "normal": [
+        0.99775,
+        -0.033526,
+        0.058068
+      ],
+      "radius_m": 0.404494
+    },
+    {
+      "name": "hoop-1-pass6",
+      "centre": [
+        1.345699,
+        -1.347254,
+        0.953794
+      ],
+      "normal": [
+        0.023101,
+        -0.043957,
+        0.998766
+      ],
+      "radius_m": 0.315092
+    },
+    {
+      "name": "hoop-3-pass7",
+      "centre": [
+        1.039892,
+        0.541558,
+        0.819525
+      ],
+      "normal": [
+        -0.052387,
+        0.996416,
+        -0.066407
+      ],
+      "radius_m": 0.468024
+    }
+  ],
+  "limits": {
+    "setpoint_rate_hz": 50.0,
+    "target_speed_m_s": 0.2,
+    "maximum_speed_m_s": 0.3,
+    "maximum_acceleration_m_s2": 0.5,
+    "maximum_tilt_deg": 10.0,
+    "maximum_tracking_error_m": 0.3,
+    "telemetry_timeout_s": 0.25,
+    "drone_radius_m": 0.12,
+    "clearance_margin_m": 0.1,
+    "pre_post_distance_m": 0.4,
+    "takeoff_duration_s": 3.0,
+    "landing_duration_s": 3.0,
+    "bounds_min": [
+      -1.6,
+      -2.2,
+      -0.2
+    ],
+    "bounds_max": [
+      3.0,
+      1.6,
+      1.6
+    ]
+  },
+  "planning_profile": "conservative",
+  "trajectory_version": 1,
+  "frame_depth_m": 0.1,
+  "stop_at_approaches": true,
+  "turning_waypoints": [
+    {
+      "after_crossing": 1,
+      "positions_m": [
+        [
+          0.1862599799593666,
+          0.8164125539836271,
+          0.798274750782426
+        ],
+        [
+          -0.7976062874447778,
+          0.0006034567081487641,
+          0.4066642488058898
+        ]
+      ]
+    },
+    {
+      "after_crossing": 3,
+      "positions_m": [
+        [
+          1.3537876728468783,
+          -0.67689043816747,
+          1.3035057624598578
+        ]
+      ]
+    },
+    {
+      "after_crossing": 4,
+      "positions_m": [
+        [
+          0.1862599799593666,
+          0.8164125539836271,
+          0.798274750782426
+        ],
+        [
+          -0.7976062874447778,
+          0.0006034567081487641,
+          0.4066642488058898
+        ]
+      ]
+    },
+    {
+      "after_crossing": 6,
+      "positions_m": [
+        [
+          1.3537876728468783,
+          -0.67689043816747,
+          1.3035057624598578
+        ]
+      ]
+    }
+  ]
+}
