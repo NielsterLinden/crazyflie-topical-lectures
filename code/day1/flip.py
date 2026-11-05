@@ -121,8 +121,10 @@ def _land(cf, x, y, z, abort_ignored=None):
     for zi in np.linspace(z, 0.05, max(2, int(z / 0.3 * 100))):      # 0.3 m/s down
         cf.commander.send_position_setpoint(x, y, float(zi), 0.0)
         time.sleep(0.01)
-    for _ in range(150):                    # the drone lags ~0.5 s: wait on the floor before the motors stop
-        cf.commander.send_position_setpoint(x, y, 0.0, 0.0)
+    # the drone lags ~0.5 s: hover at 5 cm for 1 s, then cut (~7 cm drop). Holding z=0 on carpet kept
+    # near-hover thrust on the floor, it tipped to 18 deg and the tumble lock fired (rehearsal 1032)
+    for _ in range(100):
+        cf.commander.send_position_setpoint(x, y, 0.05, 0.0)
         time.sleep(0.01)
     cf.commander.send_stop_setpoint()
 

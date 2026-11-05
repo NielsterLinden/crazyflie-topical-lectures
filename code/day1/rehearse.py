@@ -3,6 +3,7 @@ shifted so it starts where the drone stands, optionally scaled down to fit the r
 
     PY rehearse.py check plans/race1/trajectory.csv room=3.0          # no radio: fits? speeds? predicted lag
     PY rehearse.py fly plans/race1/trajectory.csv room=3.0            # FLIES
+    PY rehearse.py fly plans/race1/trajectory.csv room=3.0 laps=2     # FLIES two laps, straight back in between
 
 `room` is the free length in metres in front of the drone along +x (and +-room/2 sideways). The path is scaled
 uniformly in x/y and in time if it does not fit, so the speeds stay the race speeds; z is kept, clipped
@@ -47,9 +48,19 @@ def check(path, room=3.0):
     return dict(duration_s=t[-1], scale=s, peak_speed=v.max(), lag_error=max(err))
 
 
-def fly(path, room=3.0, vbat_min=3.9):
-    """FLIES the trajectory. Enter lands. Lands too when the estimate leaves the room box by 0.3 m."""
+def repeat(t, p, laps=1, v_back=0.3):
+    """laps > 1: straight transit back to the start at v_back (linear interp between end and start), then again."""
+    T, P = t, p
+    for _ in range(int(laps) - 1):
+        T = np.r_[T, T[-1] + max(np.linalg.norm(p[-1] - p[0]) / v_back, 0.5) + t]
+        P = np.r_[P, p]
+    return T, P
+
+
+def fly(path, room=3.0, vbat_min=3.9, laps=1):
+    """FLIES the trajectory `laps` times. Enter lands. Lands too when the estimate leaves the room box by 0.3 m."""
     t, p, s = load(path, room)
+    t, p = repeat(t, p, laps)
     if np.linalg.norm(np.diff(p, axis=0), axis=1).max() / np.diff(t).min() > 0.6:
         raise crazyflie.DroneError('planned speed above 0.6 m/s: not for a rehearsal')
     dp.preflight(vbat_min=vbat_min)
