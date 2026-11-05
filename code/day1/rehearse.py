@@ -58,7 +58,7 @@ def repeat(t, p, laps=1, v_back=0.3):
 
 
 def fly(path, room=3.0, vbat_min=3.9, laps=1):
-    """FLIES the trajectory `laps` times. Enter lands. Lands too when the estimate leaves the room box by 0.3 m."""
+    """FLIES the trajectory `laps` times. Enter lands. Lands too when the estimate leaves the path's box by 0.3 m."""
     t, p, s = load(path, room)
     t, p = repeat(t, p, laps)
     if np.linalg.norm(np.diff(p, axis=0), axis=1).max() / np.diff(t).min() > 0.6:
@@ -85,7 +85,7 @@ def fly(path, room=3.0, vbat_min=3.9, laps=1):
                 ref.append((time.monotonic(), *sp))
                 e = rows[-1]
                 rel = np.array([e['stateEstimate.x'], e['stateEstimate.y']]) - o[:2]
-                if rel[0] < -0.3 or rel[0] > room + 0.3 or abs(rel[1]) > room / 2 + 0.3:
+                if np.any(rel < p[:, :2].min(0) - 0.3) or np.any(rel > p[:, :2].max(0) + 0.3):   # path box + 0.3 m
                     print('FENCE: estimate at x %+.2f y %+.2f from start, landing' % tuple(rel))
                     break
                 abort.pump()
