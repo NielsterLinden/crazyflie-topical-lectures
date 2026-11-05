@@ -153,36 +153,8 @@ def fly(step='hover', z0=1.5, climb_s=0.40, rate=1000.0, spin_ratio=0.3, sign=1,
                 time.sleep(0.01)
             if not _hold(cf, x0, y0, z0, 3.0, abort):
                 return _finish(cf, conf, rows, x0, y0, step)
-            hover = [r for r in rows if time.monotonic() - r['t'] < 1.5]
-            hover_pwm = float(np.median([r['stabilizer.thrust'] for r in hover]))
-            z_now = float(np.median([r['stateEstimate.z'] for r in hover]))
-            r = simulate(z0=z_now, climb_s=climb_s, rate=rate, spin_ratio=spin_ratio,
-                         hover_pwm=hover_pwm)
-            print('hover thrust %.0f PWM (%.0f %%), z %.2f m; a flip from here: model z min %.2f, z max %.2f'
-                  % (hover_pwm, hover_pwm / 655.35, z_now, r['z_min'], r['z_max']))
-            far = np.hypot(rows[-1]['stateEstimate.x'] - x0, rows[-1]['stateEstimate.y'] - y0)
-            gates = {'height within 20 cm of z0': abs(z_now - z0) < 0.20, 'within 15 cm of start': far < 0.15,
-                     'hover thrust < 52000 PWM': hover_pwm < 52000,
-                     'model z min >= 0.5 m': step == 'hover' or r['z_min'] >= 0.5}
-            if not all(gates.values()) or step == 'hover':
-                if not all(gates.values()):
-                    print('GATE FAILED, landing:', [k for k, v in gates.items() if not v])
+            if not _maneuver(cf, rows, x0, y0, z0, step, abort, climb_s, rate, spin_ratio, sign, fence):
                 return _finish(cf, conf, rows, x0, y0, step)
-            param.set_value('motion.disable', 1)
-            if step == 'flip':
-                param.set_value('flightmode.stabModePitch', 0)     # pitch is now a rate in rpyt packets
-            time.sleep(0.15)
-            send = cf.commander.send_setpoint
-            _stream(cf, climb_s, lambda: send(0, 0, 0, r['climb_pwm']), abort)
-            if step == 'flip':
-                _stream(cf, r['t_spin'], lambda: send(0, sign * rate, 0, r['spin_pwm']), abort)
-                param.set_value('flightmode.stabModePitch', 1)     # back to angle; pitch 0 = level
-                _stream(cf, 0.35, lambda: send(0, 0, 0, r['recover_pwm']), abort)   # hop: no fall to stop
-            param.set_value('motion.disable', 0)
-            e = rows[-1]
-            _hold(cf, e['stateEstimate.x'], e['stateEstimate.y'], max(0.5, e['stateEstimate.z']), 0.5, abort)
-            if np.hypot(e['stateEstimate.x'] - x0, e['stateEstimate.y'] - y0) < fence:
-                _hold(cf, x0, y0, z0, 2.0, abort)
             return _finish(cf, conf, rows, rows[-1]['stateEstimate.x'], rows[-1]['stateEstimate.y'], step)
         except BaseException:
             param.set_value('flightmode.stabModePitch', 1)
@@ -192,6 +164,48 @@ def fly(step='hover', z0=1.5, climb_s=0.40, rate=1000.0, spin_ratio=0.3, sign=1,
             raise
         finally:
             abort.close()
+
+
+def _maneuver(cf, rows, x0, y0, z0, step, abort, climb_s=0.40, rate=1000.0, spin_ratio=0.3, sign=1, fence=1.0):
+    """After >= 1.5 s of position hold at (x0, y0, z0): measure hover thrust, check the gates, then hop or flip.
+    False = gate failed or step 'hover' (nothing done). Needs the rpyt commander unlocked (one 0-thrust packet)."""
+    param = cf.param
+    hover = [r for r in rows if time.monotonic() - r['t'] < 1.5]
+    hover_pwm = float(np.median([r['stabilizer.thrust'] for r in hover]))
+    z_now = float(np.median([r['stateEstimate.z'] for r in hover]))
+    r = simulate(z0=z_now, climb_s=climb_s, rate=rate, spin_ratio=spin_ratio,
+                 hover_pwm=hover_pwm)
+    print('hover thrust %.0f PWM (%.0f %%), z %.2f m; a flip from here: model z min %.2f, z max %.2f'
+          % (hover_pwm, hover_pwm / 655.35, z_now, r['z_min'], r['z_max']))
+    far = np.hypot(rows[-1]['stateEstimate.x'] - x0, rows[-1]['stateEstimate.y'] - y0)
+    gates = {'height within 20 cm of z0': abs(z_now - z0) < 0.20, 'within 15 cm of start': far < 0.15,
+             'hover thrust < 52000 PWM': hover_pwm < 52000,
+             'model z min >= 0.5 m': step == 'hover' or r['z_min'] >= 0.5}
+    if not all(gates.values()) or step == 'hover':
+        if not all(gates.values()):
+            print('GATE FAILED, landing:', [k for k, v in gates.items() if not v])
+        return False
+    try:
+        param.set_value('motion.disable', 1)
+        if step == 'flip':
+            param.set_value('flightmode.stabModePitch', 0)     # pitch is now a rate in rpyt packets
+        time.sleep(0.15)
+        send = cf.commander.send_setpoint
+        _stream(cf, climb_s, lambda: send(0, 0, 0, r['climb_pwm']), abort)
+        if step == 'flip':
+            _stream(cf, r['t_spin'], lambda: send(0, sign * rate, 0, r['spin_pwm']), abort)
+            param.set_value('flightmode.stabModePitch', 1)     # back to angle; pitch 0 = level
+            _stream(cf, 0.35, lambda: send(0, 0, 0, r['recover_pwm']), abort)   # hop: no fall to stop
+        param.set_value('motion.disable', 0)
+    except BaseException:       # never leave the caller's landing in pitch-rate mode with flow off
+        param.set_value('flightmode.stabModePitch', 1)
+        param.set_value('motion.disable', 0)
+        raise
+    e = rows[-1]
+    _hold(cf, e['stateEstimate.x'], e['stateEstimate.y'], max(0.5, e['stateEstimate.z']), 0.5, abort)
+    if np.hypot(e['stateEstimate.x'] - x0, e['stateEstimate.y'] - y0) < fence:
+        _hold(cf, x0, y0, z0, 2.0, abort)
+    return True
 
 
 def _finish(cf, conf, rows, x, y, step):

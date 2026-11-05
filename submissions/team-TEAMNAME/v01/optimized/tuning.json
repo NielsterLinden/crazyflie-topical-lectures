@@ -19,8 +19,12 @@
     "kalman.pNVel": 0.0,
     "kalman.pNPos": 0.0
   },
-  "mode": "baseline",
-  "factor": 1.0,
-  "factor_range": null,
-  "range_checked": false
+  "mode": "controller",
+  "factor": 0.95,
+  "factor_range": [
+    0.95,
+    1.0
+  ],
+  "range_checked": true,
+  "parameter_group": "position_p_xy"
 }

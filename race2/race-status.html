@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drone 4 Race Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: one reading column, status first, then how it works, then the map of the code */
+  --bg:#f5f7f8; --panel:#ffffff; --ink:#16212a; --muted:#5b6b78; --line:#d6dee4; --accent:#0a6e8a;
+  --good:#2e7d4f; --warn:#b26a00; --bad:#b3261e;
+  --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10171c; --panel:#172129; --ink:#e3eaef; --muted:#93a4b1; --line:#2a3842; --accent:#4fb8d6;
+  --good:#5cc489; --warn:#e3a33b; --bad:#ef7268; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10171c; --panel:#172129; --ink:#e3eaef; --muted:#93a4b1; --line:#2a3842; --accent:#4fb8d6;
+  --good:#5cc489; --warn:#e3a33b; --bad:#ef7268; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--body)}
+main{max-width:860px;margin:0 auto;padding:32px 20px 64px;display:grid;gap:28px}
+h1{font-size:30px;margin:0;text-wrap:balance}
+h2{font-size:21px;margin:0 0 10px;text-wrap:balance}
+h3{font-size:16px;margin:14px 0 4px}
+p{margin:6px 0;max-width:68ch}
+.sub{color:var(--muted);margin-top:4px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 22px}
+code,.mono{font-family:var(--mono);font-size:13.5px}
+pre{font-family:var(--mono);font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:8px 0}
+table{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
+.tw{overflow-x:auto}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+.pill{display:inline-block;font-size:12.5px;font-weight:600;padding:1px 9px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.ok{color:var(--good)} .wa{color:var(--warn)} .no{color:var(--bad)}
+.checks{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.checks li{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:baseline}
+svg{max-width:100%;height:auto;display:block}
+svg text{fill:var(--ink);font:13px var(--body)}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.flow span.b{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:5px 10px;font-size:14px}
+.flow span.a{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Drone 4 race status</h1>
+  <p class="sub">Team crazyflie · drone label 4 · <span class="mono">radio://0/30/2M/E7E7E7E704</span> · 5 Nov 2026</p>
+</header>
+
+<section>
+  <h2>Are we ready?</h2>
+  <ul class="checks">
+    <li><span class="pill ok">ready</span><span>Race plan: 7 hoop crossings 3-2-1-3-2-1-3, 150 s, peak 0.24 m/s. Flown for real today through 3 → 2 → 1 → 3.</span></li>
+    <li><span class="pill ok">ready</span><span>Submission folder with course, trajectory, summary and tuning (baseline gains captured from drone 4).</span></li>
+    <li><span class="pill wa">to do</span><span>Battery: charge to at least 4.10 V. The full 150 s uses about 80 % of a battery.</span></li>
+    <li><span class="pill wa">to do</span><span>Test run stopped after about 90 of 150 s (abort window pressed or closed?). Lap 2 (2 → 1 → 3) not flown yet in one go.</span></li>
+    <li><span class="pill wa">to do</span><span>Organisers' dry run on the flight laptop must print <span class="mono">TRAJECTORY PROTOCOL 1</span>.</span></li>
+    <li><span class="pill wa">to do</span><span>Team name: rename <span class="mono">team-TEAMNAME</span> and fill in the README.</span></li>
+    <li><span class="pill no">no-go</span><span>Backflip: the motors give only 1.17× hover thrust; the flip needs about 3 m to recover. Off by default.</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>How we move through the hoops</h2>
+  <p>The planner builds one smooth path from the start (0, 0, 1) through the centre of every hoop, in the order and direction the organisers gave. Each crossing approaches along the hoop's normal, so the drone goes straight through and stays at least 0.32 m from the rim.</p>
+  <div class="tw"><table>
+    <tr><th>Hoop</th><th>Centre (m)</th><th>Radius</th><th>Cross towards</th><th>Today</th></tr>
+    <tr><td>3</td><td>1.04, 0.54, 0.82</td><td>0.47 m</td><td>+y (outside)</td><td><span class="pill wa">kick</span> estimate jumps 10–17 cm, pitch ±19°, recovers in 1.5 s</td></tr>
+    <tr><td>2</td><td>−0.50, −0.78, 0.43</td><td>0.40 m</td><td>+x, low</td><td><span class="pill ok">clean</span></td></tr>
+    <tr><td>1</td><td>1.35, −1.35, 0.95</td><td>0.32 m</td><td>up (+z), flat hoop</td><td><span class="pill wa">kick</span> after the rim: jumps up to 0.37 m, overshoot to 1.64 m</td></tr>
+  </table></div>
+  <svg viewBox="0 0 500 420" role="img" aria-label="Top view of the course with the planned path through hoops 3, 2 and 1">
+    <rect x="20" y="20" width="460" height="380" fill="none" stroke="var(--bad)" stroke-dasharray="5 4"/>
+    <text x="26" y="36" style="fill:var(--bad)">allowed box</text>
+    <polyline fill="none" stroke="var(--accent)" stroke-width="2" points="180,180 181,180 185,179 195,178 210,176 228,174 246,171 263,169 276,167 283,166 286,166 286,165 286,159 285,145 284,131 284,120 283,106 282,92 282,86 282,86 277,87 266,88 250,91 231,94 214,96 203,98 199,98 199,98 198,99 194,102 188,108 178,116 165,126 152,137 138,149 125,160 114,168 106,175 102,178 100,180 100,180 100,183 98,193 96,209 94,228 91,244 90,254 90,257 91,257 100,257 115,258 127,258 138,259 153,259 166,260 169,260 170,260 172,261 177,262 185,266 198,270 213,276 230,282 248,289 265,295 281,301 294,306 304,309 310,312 313,313 314,313 314,313 314,313 314,314 315,315 315,315 315,316 315,316 315,316 315,315 315,306 315,289 315,271 315,256 315,249 315,248 315,246 313,241 309,230 304,216 298,200 293,185 289,174 287,168 286,166 286,165 286,157 285,142 284,129 284,118 283,103 282,90 282,86 281,86 276,87 264,89 246,91 227,94 212,96 202,98 199,98 199,98 197,100 193,103 186,109 176,118 163,128 149,140 135,151 122,161 112,170 105,176 101,179 100,180 100,180 100,184 98,196 96,213 93,231 91,247 90,255 90,257 92,257 102,258 117,258 129,258 141,259 156,259 167,260 169,260 170,260 172,261 178,263 188,266 200,271 216,277 233,283 251,290 268,296 284,302 296,307 305,310 311,312 313,313 314,313 314,313 314,314 314,314 315,315 315,315 315,316 315,316 315,316 315,314 315,303 315,286 315,267 315,254 315,248 315,248 315,246 312,239 308,227 303,213 297,197 292,183 288,172 287,167 286,166 286,164 285,154 285,139 284,127 283,115 283,100 282,89 282,86 283,76 284,66"/>
+    <circle cx="180" cy="180" r="6" fill="var(--ink)"/><text x="160" y="205">start 0,0</text>
+    <line x1="237" y1="126" x2="331" y2="126" stroke="var(--warn)" stroke-width="5"/><text x="300" y="118">3 (→ +y, up on map)</text>
+    <line x1="130" y1="218" x2="130" y2="298" stroke="var(--good)" stroke-width="5"/><text x="62" y="318">2 (→ +x)</text>
+    <circle cx="315" cy="315" r="32" fill="none" stroke="var(--warn)" stroke-width="4"/><text x="352" y="340">1 (flat, upwards)</text>
+    <line x1="420" y1="395" x2="470" y2="395" stroke="var(--muted)"/><text x="428" y="388">+x</text>
+    <line x1="470" y1="395" x2="470" y2="345" stroke="var(--muted)"/><text x="476" y="355">+y</text>
+  </svg>
+  <p class="sub">Top view, x is the 5 m side. Blue: the planned path for both laps (they overlap).</p>
+
+  <h3>Do we filter out the jumps near the hoops?</h3>
+  <p><b>No, not yet.</b> The drone's own Kalman filter combines the Lighthouse sweep angles with the motion sensor (IMU). Each sweep gets the same fixed trust (<span class="mono">lighthouse.sweepStd</span>), everywhere in the arena. Near a hoop the frame blocks or reflects the base-station light, the filter believes the bad sweeps, and the position estimate jumps. The drone then flies to "correct" a jump that never happened: that is the kick you saw.</p>
+  <p>Options we have:</p>
+  <div class="tw"><table>
+    <tr><th>Option</th><th>Works in</th><th>Status</th></tr>
+    <tr><td>Trust each sweep 4× less (<span class="mono">drone_pipeline.py lh_trust</span>)</td><td>our own flights only: a power cycle resets it, and the organisers power-cycle before each flight</td><td><span class="pill wa">untested</span></td></tr>
+    <tr><td>Kalman <span class="mono">pNAcc_xy</span> × 0.5 in <span class="mono">optimized/tuning.json</span> (trusts the IMU's motion model more)</td><td>the organisers' runner (allowed range 0.5–2)</td><td><span class="pill wa">untested</span></td></tr>
+    <tr><td>Change nothing</td><td>everywhere</td><td><span class="pill ok">flown today</span> recovers each time</td></tr>
+  </table></div>
+  <p>Recommendation for race 1: change nothing, it completed the loop. Try one option only after a test flight.</p>
+</section>
+
+<section>
+  <h2>How we share with the organisers</h2>
+  <p>Yes, through files: one folder per team, with two profiles. Both carry the same path.</p>
+<pre>submissions/team-TEAMNAME/v01/
+  README.md
+  baseline/   course.json  trajectory.csv  summary.json  tuning.json
+  optimized/  course.json  trajectory.csv  summary.json  tuning.json</pre>
+  <div class="tw"><table>
+    <tr><th>File</th><th>What it holds</th></tr>
+    <tr><td><span class="mono">course.json</span></td><td>the hoops (centre, normal, radius), start (0, 0, 1), order and direction, allowed box</td></tr>
+    <tr><td><span class="mono">trajectory.csv</span></td><td>the path: every 0.02 s a time, position, velocity and acceleration (7 520 rows, 150 s)</td></tr>
+    <tr><td><span class="mono">summary.json</span></td><td>planned duration, speed and acceleration limits, crossing times, a checksum of the course</td></tr>
+    <tr><td><span class="mono">tuning.json</span></td><td>drone 4's captured gains; the runner may scale one group (controller 0.9–1.1 or Kalman 0.5–2)</td></tr>
+  </table></div>
+  <p>The flag <span class="mono">enabled_for_flight</span> stays false in the folder. On the flight laptop the organisers' runner (<span class="mono">03_flight.ipynb</span>) gets a copy with the flag on, and its dry check must print <span class="mono">TRAJECTORY PROTOCOL 1</span>.</p>
+
+  <h3>Was today's run the same as what we share?</h3>
+  <div class="tw"><table>
+    <tr><th>Part</th><th>Same?</th></tr>
+    <tr><td>The path (<span class="mono">trajectory.csv</span>)</td><td><span class="pill ok">same</span> byte-identical to both submission folders</td></tr>
+    <tr><td>Coordinates</td><td><span class="pill ok">same</span> flown in the Lighthouse frame, no shift or scaling</td></tr>
+    <tr><td>Gains</td><td><span class="pill ok">same</span> drone 4's defaults = the baseline profile</td></tr>
+    <tr><td>Program that flies it</td><td><span class="pill wa">different</span> our <span class="mono">rehearse.py</span>, not the organisers' runner: our takeoff, 2 s hold, landing and fence</td></tr>
+  </table></div>
+  <p>So the path and the drone are proven; the organisers' runner on their laptop is the one part we have not seen fly.</p>
+</section>
+
+<section>
+  <h2>The code: what is where</h2>
+  <div class="flow">
+    <span class="b">hoop-*.json survey</span><span class="a">→</span>
+    <span class="b">make_course.py</span><span class="a">→</span>
+    <span class="b">course.json</span><span class="a">→</span>
+    <span class="b">planner (day3)</span><span class="a">→</span>
+    <span class="b">trajectory.csv</span><span class="a">→</span>
+    <span class="b">rehearse.py or runner</span><span class="a">→</span>
+    <span class="b">drone</span>
+  </div>
+  <div class="tw"><table>
+    <tr><th>File</th><th>What it does</th></tr>
+    <tr><td><span class="mono">race2/hoop-1/2/3.json</span></td><td>the organisers' hoop survey (centre, normal, radius, measured points)</td></tr>
+    <tr><td><span class="mono">race2/make_course.py</span></td><td>turns the survey into <span class="mono">course.json</span>: start, order 3-2-1-3-2-1-3, crossing directions, arena box</td></tr>
+    <tr><td><span class="mono">code/day3/notebook_tools.py</span> (<span class="mono">plan_race</span>)</td><td>the course planner: smooth path with speed and acceleration limits, rim clearance checks</td></tr>
+    <tr><td><span class="mono">race2/plan_cons/</span></td><td>the race plan we use (conservative profile, 150 s)</td></tr>
+    <tr><td><span class="mono">code/day3/hoop_view.py</span></td><td>draws the hoops and the plan to check directions by eye</td></tr>
+    <tr><td><span class="mono">code/day1/drone_pipeline.py</span></td><td>ground checks: <span class="mono">preflight</span> (battery, lock, yaw, USB), <span class="mono">lh_check</span> (Lighthouse stations), <span class="mono">lh_trust</span></td></tr>
+    <tr><td><span class="mono">code/day1/rehearse.py</span></td><td>our flyer: takeoff, 2 s hold at the start, streams the plan as position setpoints 100× a second, fence, Enter lands, tracking report</td></tr>
+    <tr><td><span class="mono">code/day1/flip.py</span></td><td>logging, hold and landing helpers; the backflip manoeuvre</td></tr>
+    <tr><td><span class="mono">code/day1/crazyflie.py</span></td><td>radio connection, status, reboot, abort window</td></tr>
+    <tr><td><span class="mono">submissions/make_v01.py</span></td><td>builds the submission folder from the plan and the captured gains</td></tr>
+    <tr><td><span class="mono">code/day1/data/flip_4_*.csv</span></td><td>flight logs (position, pitch, thrust, active base stations), 100 rows a second</td></tr>
+  </table></div>
+  <h3>Commands on race day</h3>
+<pre># from team-crazyflie/code/day1, PY = the course venv python
+"$PY" crazyflie.py reboot --label 4                 # clears the lock after a landing
+"$PY" drone_pipeline.py lh_check                    # Lighthouse OK, >= 2 stations
+"$PY" rehearse.py fly ../../race2/plan_cons/trajectory.csv absolute=1 vbat_min=4.0</pre>
+</section>
+
+<section>
+  <h2>Today's test flight (log 12:53)</h2>
+  <div class="tw"><table>
+    <tr><th>Time</th><th>What happened</th></tr>
+    <tr><td>0–5 s</td><td>takeoff to (0, 0, 1), 2 s hold</td></tr>
+    <tr><td>16.5 s</td><td>hoop 3: kick from the frame, pitch −16°…+18°, back on the path by 18 s</td></tr>
+    <tr><td>40–55 s</td><td>hoop 2: clean, low and steady</td></tr>
+    <tr><td>64–71 s</td><td>hoop 1 upwards, then at the rim jumps up to 0.37 m with only 2 stations seen; peak 1.64 m</td></tr>
+    <tr><td>84 s</td><td>hoop 3 again: same kick as the first time</td></tr>
+    <tr><td>~95 s</td><td>flew towards the centre and landed. No fence message, so the abort window stopped it (Enter, Escape or closed)</td></tr>
+  </table></div>
+  <p>Away from the hoops the drone stayed within about 5 cm of the path. Battery before takeoff: 4.02 V (74 %).</p>
+</section>
+
+<section>
+  <h2>Backflip for race 2</h2>
+  <p>Built in as an option: <span class="mono">backflip=1</span> flies to the centre (0, 0, 1.7 m) after a clean loop, holds 2 s, flips and lands. Without the option the flight is exactly as today (checked command by command against a fake drone). It is skipped after a fence trip or Enter.</p>
+  <p><span class="pill no">do not use</span> A measured hop shows the motors give only 1.17× hover thrust. With that, the model loses 2.8 m or more in the flip; the highest allowed start is 2.2 m. The code's own safety gate assumes 1.36× and would let it go ahead. A one-line fix makes the gate use the measured 1.17×, so the flip is refused and the drone lands.</p>
+</section>
+</main>
+</body>
+</html>
