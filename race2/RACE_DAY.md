@@ -1,7 +1,7 @@
 # Race day, drone 4 (5 Nov 2026)
 
 ## Race 1: slow 150 s plan with stops, organisers' format
-- Plan: `race2/plan_cons/trajectory.csv`, submission `submissions/team-TEAMNAME/v01/` (baseline + optimized tuning.json, xKp/yKp x0.95).
+- Plan: `race2/plan_cons/trajectory.csv`, submission `submissions/team-hoop-storm/v01/` (baseline + optimized tuning.json, xKp/yKp x0.95).
 - Full battery (>= 4.10 V on the charger). Reboot the drone first so nothing from race 2 tests is left set.
 - Own laptop fallback: `cd code/day1 && PY rehearse.py fly ../../race2/plan_cons/trajectory.csv absolute=1 vbat_min=4.0`
 

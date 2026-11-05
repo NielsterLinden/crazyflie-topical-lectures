@@ -1,4 +1,4 @@
-"""Build submissions/team-TEAMNAME/v01/{baseline,optimized} from race2/plan_cons via the course API.
+"""Build submissions/team-hoop-storm/v01/{baseline,optimized} from race2/plan_cons via the course API.
 
 No radio. Usage (from team-crazyflie/, PY = course venv python):
   $PY submissions/make_v01.py                          # plan files only (course, summary, trajectory)
@@ -14,7 +14,7 @@ from day3.notebook_tools import load_plan, save_plan
 from day3.tuning import make_tuning
 
 source = root / "race2/plan_cons/course.json"
-v01 = root / "submissions/team-TEAMNAME/v01"
+v01 = root / "submissions/team-hoop-storm/v01"
 baseline = Path(sys.argv[1]) if len(sys.argv) > 1 else None
 factor = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
 plan = load_plan(source)  # checks course/summary match and recomputes the trajectory

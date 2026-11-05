@@ -59,7 +59,7 @@ svg text{fill:var(--ink);font:13px var(--body)}
 <tr><td>Race 1</td><td>Organisers' slow plan with stops at every hoop, 150 s, <code>race2/plan_cons/trajectory.csv</code></td><td><span class="pill ok">flown clean 12:53</span></td></tr>
 <tr><td>Race 2</td><td>Our own path: no stops, 0.7 m/s, 36.6 s, <code>race2/plan_fast/trajectory.csv</code> with Lighthouse trust ×4</td><td><span class="pill ok">flown clean 14:08</span></td></tr>
 </table></div>
-<p>Still open: a full charge before race 1, the team name (folder <code>submissions/team-TEAMNAME</code>), and a dry run on the organisers' flight laptop.</p>
+<p>Still open: a full charge before race 1, the team name (folder <code>submissions/team-hoop-storm</code>), and a dry run on the organisers' flight laptop.</p>
 </section>
 
 <section>
@@ -128,14 +128,14 @@ svg text{fill:var(--ink);font:13px var(--body)}
 <code>tuning=</code>: apply a submission tuning.json the way the organisers' runner does.<br>
 Speed limit raised to 0.8 m/s.</td></tr>
 <tr><td><code>code/day1/flip.py</code></td><td>The flight log now records the raw height-sensor distance (<code>range.zrange</code>) instead of vertical speed.</td></tr>
-<tr><td><code>submissions/team-TEAMNAME/v01/optimized/tuning.json</code></td><td>Optimized profile: <code>position_p_xy</code> ×0.95 (xKp/yKp 2.0 → 1.9). The baseline profile is unchanged. Both are within the organisers' limits (controller 0.9–1.1).</td></tr>
+<tr><td><code>submissions/team-hoop-storm/v01/optimized/tuning.json</code></td><td>Optimized profile: <code>position_p_xy</code> ×0.95 (xKp/yKp 2.0 → 1.9). The baseline profile is unchanged. Both are within the organisers' limits (controller 0.9–1.1).</td></tr>
 </table></div>
 <p>Commits on <code>drone-pipeline</code>: <code>57a8085</code>, <code>eb8f0b9</code>, <code>dd18488</code>, <code>167196f</code>.</p>
 </section>
 
 <section>
 <h2>Race 1 plan</h2>
-<p>The organisers' slow plan with stops, the same as the clean 12:53 flight. Use a full battery (at least 4.10 V on the charger) and reboot first, so the Lighthouse setting from race 2 tests is gone. Run it with the organisers' runner on their laptop with <code>submissions/team-TEAMNAME/v01/</code>, or on our own laptop:</p>
+<p>The organisers' slow plan with stops, the same as the clean 12:53 flight. Use a full battery (at least 4.10 V on the charger) and reboot first, so the Lighthouse setting from race 2 tests is gone. Run it with the organisers' runner on their laptop with <code>submissions/team-hoop-storm/v01/</code>, or on our own laptop:</p>
 <pre>PY rehearse.py fly ../../race2/plan_cons/trajectory.csv absolute=1 vbat_min=4.0</pre>
 </section>
 
