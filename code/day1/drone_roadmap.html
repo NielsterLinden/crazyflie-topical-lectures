@@ -100,20 +100,22 @@ td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size
 <main>
 <header>
   <h1>Drone 4 flight roadmap</h1>
-  <p class="meta">Crazyflie 2.1 + flow deck · <span class="mono">radio://0/30/2M/E7E7E7E704</span> · state on Wednesday 4 November 2026, end of the afternoon · tools: <span class="mono">code/day1/drone_pipeline.py</span> · handover: <span class="mono">code/day1/HANDOVER.md</span></p>
+  <p class="meta">Crazyflie 2.1 + flow deck · <span class="mono">radio://0/30/2M/E7E7E7E704</span> · state on Thursday 5 November 2026, ~09:55 · tools: <span class="mono">code/day1/drone_pipeline.py</span> · handover: <span class="mono">code/day1/HANDOVER.md</span></p>
 </header>
 
 <section aria-labelledby="where">
   <h2 id="where">Where we are</h2>
   <div class="status">
-    <div class="tile warn"><span class="k">Drone</span><span class="v">Battery 16 %, recharge</span><span class="n">3.81 V at rest after three flights. Preflight refuses while the USB cable is in.</span></div>
+    <div class="tile ok"><span class="k">Drone</span><span class="v">Recharge for the race</span><span class="n">4.10 V (89 %) at the start; ~3.67 V after 4 tune and 2 keyboard flights, all clean landings. Race needs ≥ 4.10 V at rest.</span></div>
+    <div class="tile ok"><span class="k">Remaining</span><span class="v">0 Day 1 flights</span><span class="n">Calibration, tuning, handover, two keyboard flights and the Day 2 E7 lag are done. Next: Day 3 race (charge, floor check, preflight vbat_min=4.10).</span></div>
     <div class="tile ok"><span class="k">Abort window</span><span class="v">Verified</span><span class="n">Enter registered after 1.3 s on this laptop.</span></div>
     <div class="tile ok"><span class="k">Floor</span><span class="v">Carpet, not the plain floor</span><span class="n">Plain floor 4_1520 drifted ~4 m while the estimate saw 15 cm. Carpet: surface quality 110–130 at 0.6 m.</span></div>
     <div class="tile ok"><span class="k">Carpet hover 4_1540</span><span class="v">Near perfect</span><span class="n">Hover std 10 mm / 3 mm, matches what we saw.</span></div>
     <div class="tile ok"><span class="k">Calibration 4_1543</span><span class="v">τ 0.13 s, dead time 0.18 s</span><span class="n">Noise bounds |Kp| &lt; 2.1, |Kd| &lt; 2.9. In data/drone_4_params.json.</span></div>
-    <div class="tile warn"><span class="k">Tuning</span><span class="v">Kp −0.7 and −1.4 flown</span><span class="n">−1.4: rise 2.34 s, overshoot 2.6 cm, 37 % of samples at the 0.3 m/s clamp. −2.0 approved, not flown.</span></div>
-    <div class="tile bad"><span class="k">Preflight on carpet</span><span class="v">Estimate runs away on the ground</span><span class="n">The pile blinds the height sensor (0.000 m): drift 5–15 cm in 2 s. Try a thin flat card under the drone.</span></div>
-    <div class="tile ok"><span class="k">Keyboard mode</span><span class="v">Built, keys verified</span><span class="n">Dry run on the fake drone passes, every key registers. Not flown yet.</span></div>
+    <div class="tile ok"><span class="k">Tuning</span><span class="v">Best: Kp −2.0, Kd −0.3, Ki 0</span><span class="n">Saved with set_best. Repeat 4_0941 confirms 4_0937: rise 2.00 s, overshoot 4.0 cm, max error last 2 s 4.5 cm. Ki −0.1 made it worse.</span></div>
+    <div class="tile ok"><span class="k">Preflight on carpet</span><span class="v">Fixed with a card</span><span class="n">A flat card under the drone: ground drift 0.001–0.002 m, preflight OK every time today.</span></div>
+    <div class="tile warn"><span class="k">Yaw in flight</span><span class="v">Drifts 0 → +15°</span><span class="n">4_0936: median 7.8°, y drifted 20 cm during an x step. Matters for the race.</span></div>
+    <div class="tile ok"><span class="k">Keyboard mode</span><span class="v">Flown at 0.1 and 0.2 m/s</span><span class="n">4_0943 at 0.1 m/s: flown forward to the 1.5 m fence, which landed it. It coasted 0.2 m while landing: keep margin past the fence.</span></div>
     <div class="tile ok"><span class="k">Software</span><span class="v">Dry run passes</span><span class="n">Pipeline on the fake drone, course tests 27/27, preflight gates live.</span></div>
   </div>
 </section>
@@ -147,12 +149,16 @@ td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size
     <li class="done"><div class="d"><h3>Plan the gains, <code>plan</code></h3><span>Model: −0.7 rise 2.88 s, −1.0 2.16 s, −2.0 1.78 s with 1.7 cm overshoot (best); −4 and −8 beyond the noise bound.</span></div><span class="pill ok">done</span></li>
     <li class="done"><div class="d"><h3>Tune −0.7, <code>tune -0.7</code></h3><span>4_1545: rise 3.40 s, no overshoot, mean error last 2 s 6.7 cm.</span></div><span class="pill ok">done</span></li>
     <li class="done"><div class="d"><h3>Tune −1.4, <code>tune -1.4</code></h3><span>4_1546: rise 2.34 s, overshoot 2.6 cm, mean error 2.5 cm. Measured runs are ~0.5 s slower than the model, partly the 0.3 m/s clamp.</span></div><span class="pill ok">done</span></li>
-    <li class="next"><div class="d"><h3>Tune −2.0, <code>tune -2.0</code></h3><span>Approved; preflight refused twice (ground drift on the carpet). Full battery, a card under the drone, then fly.</span></div><span class="pill warn">next</span></li>
-    <li><div class="d"><h3>Kd ±0.3, a small Ki, one repeat, <code>tune Kp Kd Ki</code></h3><span>Around the best of −1.4 / −2.0, all on one charge so they compare.</span></div><span class="pill todo">3–4 flights</span></li>
-    <li><div class="d"><h3>Pick the best, <code>set_best Kp Kd Ki why=…</code></h3><span>Saved to the params file for Day 2.</span></div><span class="pill todo">ground</span></li>
-    <li><div class="d"><h3>Read firmware gains, <code>python crazyflie.py params --label 4</code></h3><span>Writes data/params_4.csv; replaces the assumed posCtlPid.xKp = 2.0 in the handover.</span></div><span class="pill todo">ground</span></li>
-    <li><div class="d"><h3>Handover, <code>handover</code></h3><span>Following lag 1/xKp for factors 0.9, 1.0, 1.1 for the race; the E7 lag for Day 2.</span></div><span class="pill todo">ground</span></li>
-    <li><div class="d"><h3>First keyboard flight, <code>keyboard speed=0.1</code></h3><span>Arrows only at 0.1 m/s, then raise.</span></div><span class="pill todo">flight</span></li>
+    <li class="done"><div class="d"><h3>Tune −2.0, <code>tune -2.0</code></h3><span>4_0936: rise 2.28 s, overshoot 4.7 cm, ±5 cm swing at the end, 46 % at the clamp. Barely faster than −1.4: the clamp dominates.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>Add damping, <code>tune -2.0 -0.3</code></h3><span>4_0937: rise 2.12 s, overshoot 3.5 cm, max error last 2 s 6.7 cm. Better on every number. Kd +0.3 skipped: model gives 5.7 cm overshoot; −0.6 overdamped.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>Small Ki, <code>tune -2.0 -0.3 -0.1</code></h3><span>4_0939: rise 1.98 s but overshoot 7.2 cm, ends 2.1 cm past the target. Worse; Ki stays 0.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>Repeat the best, <code>tune -2.0 -0.3</code></h3><span>4_0941: rise 2.00 s, overshoot 4.0 cm, max error last 2 s 4.5 cm, mean −0.5 cm. Confirms 4_0937.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>Pick the best, <code>set_best -2.0 -0.3 0</code></h3><span>Saved in data/drone_4_params.json.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>Read firmware gains, <code>python crazyflie.py params --label 4</code></h3><span>335 parameters, none stored on the drone: posCtlPid.xKp is the default 2.0.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>Handover, <code>handover</code></h3><span>Lag 1/xKp = 0.50 s (E7 assumed 0.25 s): 15 cm behind at 0.3 m/s, 25 cm at 0.5 m/s. Race factors 0.9–1.1: lag 0.56–0.45 s.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>First keyboard flight, <code>keyboard speed=0.1</code></h3><span>4_0943: forward at 0.1 m/s to the 1.5 m fence, which landed it; touched down at 1.71 m.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>Keyboard at 0.2 m/s, <code>keyboard speed=0.2</code></h3><span>4_0947: full 60 s, steered to x 0.6 m, y 1.2 m, height 0.49–0.59 m, yaw ±17°. First try refused: the drone was off the card.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>Day 2 E7 lag, <code>RESULTS_day2.md</code></h3><span>Measured 0.50 s replaces the assumed 0.25 s: crossing speeds halve, 0.22 m/s with range, 0.13 m/s in a 3 s range gap.</span></div><span class="pill ok">done</span></li>
   </ol>
 </section>
 

@@ -1,4 +1,4 @@
-# Handover: drone 4 calibration and tuning (state 4 Nov 2026, ~16:00)
+# Handover: drone 4 calibration and tuning (state 5 Nov 2026, ~09:55)
 
 For the next agent who takes over from here. Read this file first, then the docstring at the top of
 `drone_pipeline.py`. The visual version of this state is `drone_roadmap.html`, also published (public) at
@@ -46,45 +46,38 @@ tau 0.13 s, dead time 0.18 s, noise bounds |Kp| < 2.1, |Kd| < 2.9; hover noise x
 | 1543 `identify` | two 0.2 m/s velocity steps | the calibration above |
 | 1545 `kp0.7` | `tune -0.7` | rise 3.40 s (model 2.88), no overshoot, mean error last 2 s 6.7 cm |
 | 1546 `kp1.4` | `tune -1.4` | rise 2.34 s (model 1.86), overshoot 2.6 cm, mean error 2.5 cm, 37 % at the 0.3 m/s clamp |
+| 0936 `kp2` (5 Nov) | `tune -2.0` | rise 2.28 s, overshoot 4.7 cm, max error last 2 s 10.7 cm, 46 % at the clamp |
+| 0937 `kp2_kd-0.3` | `tune -2.0 -0.3` | rise 2.12 s, overshoot 3.5 cm, max error last 2 s 6.7 cm |
+| 0939 `kp2_kd-0.3_ki-0.1` | `tune -2.0 -0.3 -0.1` | rise 1.98 s, overshoot 7.2 cm, ends 2.1 cm past: worse |
+| 0941 `kp2_kd-0.3` | repeat | rise 2.00 s (model 1.86), overshoot 4.0 cm, max error last 2 s 4.5 cm: confirms 0937 |
+| 0943 `keyboard` | `keyboard speed=0.1` | flown forward to the 1.5 m fence, which landed it; coasted 0.2 m, touched down at x 1.71 m |
+| 0947 `keyboard` | `keyboard speed=0.2` | full 60 s, to x 0.6 m, y 1.2 m, height 0.49–0.59 m, yaw ±17°. Estimate after touchdown runs off (17 m): ignore |
 
 The model (`plan`) ranks Kp −2.0 best (rise 1.78 s, overshoot 1.7 cm). −4 and −8 exceed the noise bound.
 Measured runs are about 0.5 s slower than the model, partly because of the V_MAX = 0.3 m/s clamp.
 
-**Blocked:** Niels approved `tune -2.0`, but preflight refused twice with "position estimate still on the
-ground" (drift 0.054 m, then 0.153 m in 2 s). Nothing flew. Likely cause: the drone sits in the carpet pile,
-the height sensor reads 0.000 m, and the flow estimate runs away. Fix to try: a thin flat card or book under the
-drone at the take-off spot. In the air the carpet texture works well (the last three flights).
+**Best gains, saved with `set_best`: Kp −2.0, Kd −0.3, Ki 0.** Kd +0.3 was not flown (model: 5.7 cm overshoot);
+Kd −0.6 is overdamped in the model. The card under the drone fixed the ground drift on the carpet (preflight OK every time).
 
-Battery: 16 % (3.81 V at rest) after those flights. **Recharge before the next series.**
+`params`: 335 parameters, none stored on the drone, so posCtlPid.xKp is the default 2.0 (`data/params_4.csv`).
+`handover`: following lag 1/xKp = 0.50 s, against the 0.25 s E7 assumed: 15 cm behind at 0.3 m/s, 25 cm at 0.5 m/s.
+Race factors 0.9–1.1 give 0.56–0.45 s.
 
-No `best` gains are saved yet. Niels was asked whether to save −1.4 as the provisional best and has not
-answered.
+Yaw drifts in flight: 0 → +15° in 0936 (median 7.8°), y drifted 20 cm during an x step. Under the 10° warning in the
+other runs, but it matters for the race (body-frame setpoints).
+
+Battery: ~3.67 V after today's six flights. **Recharge before the race** (needs ≥ 4.10 V at rest).
 
 ## Next steps, in order
 
-1. Recharge with USB in. To watch it: `$PY -u crazyflie.py charge --label 4` (`-u`, or the output stays
-   buffered). Unplug before flying: preflight refuses while the cable is in.
-2. On the carpet, put a card under the drone, facing +x. Run `$PY drone_pipeline.py preflight` (ground). It
-   must print `PREFLIGHT OK`.
-3. **Go needed:** `$PY drone_pipeline.py tune -2.0`. Compare with the model (rise 1.78 s, overshoot 1.7 cm).
-4. **Go needed per flight**, around the better of −1.4 and −2.0, all on one charge so they compare:
-   - Kd −0.3 (damping) and +0.3: `tune -2.0 -0.3` and `tune -2.0 0.3`.
-   - A small Ki: `tune -2.0 0 -0.1`.
-   - One repeat of the best.
+Steps 1–8 of the old list (recharge, card, tune series, `set_best`, `params`, `handover`, first keyboard flight)
+are done, see above. Left:
 
-   Kd and Ki carry the same sign as Kp (`module.PIDController` uses error = value − setpoint). `tune` refuses
-   Kp > 0. Use `tune ... model=True` (no radio) to preview a gain set. Compare the flights with `table`.
-5. `$PY drone_pipeline.py set_best <Kp> <Kd> <Ki> why=...` (ground).
-6. `$PY crazyflie.py params --label 4` (ground). It writes `data/params_4.csv`, which `handover` reads instead
-   of the assumed firmware posCtlPid.xKp = 2.0.
-7. `$PY drone_pipeline.py handover` (ground) gives:
-   - Day 2 E7: the following lag is 1/xKp, 0.5 s at xKp 2.0, against the 0.25 s E7 assumed. Check those margins
-     (`code/day2/RESULTS_day2.md`).
-   - Day 3 R3: the posCtlPid.xKp/yKp factor, allowed range 0.9–1.1.
-8. **Go needed:** the first keyboard flight, `$PY drone_pipeline.py keyboard speed=0.1`.
-   - Controls: arrows move it, W/S climb and descend, A/D yaw, Enter lands.
-   - Run `key_test` first; it needs no drone.
-9. Day 3 race:
+1. Done: Day 2 E7 uses the measured 0.50 s lag (`code/day2/RESULTS_day2.md`, notebook constant): speeds halve
+   to 0.22 m/s, 0.13 m/s in a 3 s range gap. The notebook's E7 output cell is still from the 0.25 s run.
+2. Keyboard flown at 0.1 and 0.2 m/s (cap 0.3). Each flight needs a go. Off the card, preflight refuses on the
+   carpet: put it back on the card. It coasts ~0.2 m past the fence while landing.
+3. Day 3 race:
    - The runner is not in the repo: its path, Python and directory come from the run card on the shared flight
      laptop. The repo has `code/day3/flight.py` (the launcher) and the bounded tuning file.
    - Gate the race on `drone_pipeline.py preflight vbat_min=4.10`.
