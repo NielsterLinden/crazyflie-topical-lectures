@@ -21,10 +21,12 @@ import flip
 LAG_S = 0.50         # measured position-loop lag of drone 4 (1/xKp)
 
 
-def load(path, room=3.0, z_min=0.3, z_max=1.5):
+def load(path, room=3.0, z_min=0.3, z_max=1.5, absolute=False):
     d = np.genfromtxt(path, delimiter=',', names=True)
     t = d['time_s'] - d['time_s'][0]
     p = np.c_[d['x_m'], d['y_m'], d['z_m']]
+    if absolute:                        # Lighthouse: fly the planned coordinates as they are
+        return t, p, 1.0
     xy = p[:, :2] - p[0, :2]
     # rotate so the path's overall direction (start -> furthest point) is +x
     far = xy[np.argmax(np.linalg.norm(xy, axis=1))]
@@ -35,8 +37,8 @@ def load(path, room=3.0, z_min=0.3, z_max=1.5):
     return t * s, np.c_[xy * s, np.clip(p[:, 2], z_min, z_max)], s      # time scaled too: race speeds kept
 
 
-def check(path, room=3.0):
-    t, p, s = load(path, room)
+def check(path, room=3.0, absolute=False):
+    t, p, s = load(path, room, absolute=absolute)
     v = np.linalg.norm(np.diff(p, axis=0), axis=1) / np.diff(t)
     q, err = p[0].copy(), []
     for i in range(1, len(t)):
@@ -57,9 +59,9 @@ def repeat(t, p, laps=1, v_back=0.3):
     return T, P
 
 
-def fly(path, room=3.0, vbat_min=3.9, laps=1):
+def fly(path, room=3.0, vbat_min=3.9, laps=1, absolute=False):
     """FLIES the trajectory `laps` times. Enter lands. Lands too when the estimate leaves the path's box by 0.3 m."""
-    t, p, s = load(path, room)
+    t, p, s = load(path, room, absolute=absolute)
     t, p = repeat(t, p, laps)
     if np.linalg.norm(np.diff(p, axis=0), axis=1).max() / np.diff(t).min() > 0.6:
         raise crazyflie.DroneError('planned speed above 0.6 m/s: not for a rehearsal')
@@ -70,7 +72,7 @@ def fly(path, room=3.0, vbat_min=3.9, laps=1):
         crazyflie.reset_estimator(scf, settle=1.5)
         conf = flip._log(scf, rows)
         time.sleep(0.3)
-        o = np.array([rows[-1]['stateEstimate.x'], rows[-1]['stateEstimate.y'], 0.0])
+        o = np.zeros(3) if absolute else np.array([rows[-1]['stateEstimate.x'], rows[-1]['stateEstimate.y'], 0.0])
         ref = []
         try:
             for zi in np.linspace(0.1, p[0, 2], int(p[0, 2] / 0.4 * 100)):
@@ -106,7 +108,7 @@ def fly(path, room=3.0, vbat_min=3.9, laps=1):
         m = np.c_[[np.interp(R[:, 0], est[:, 0], est[:, i]) for i in (1, 2, 3)]].T
         err = np.linalg.norm(m - R[:, 1:], axis=1)
         print('tracking error vs setpoint: mean %.3f m, max %.3f m (model %.2f m)' % (err.mean(), err.max(),
-                                                                                    check(path, room)['lag_error']))
+                                                                                    check(path, room, absolute)['lag_error']))
     return name
 
 

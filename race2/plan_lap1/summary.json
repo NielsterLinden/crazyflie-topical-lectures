@@ -1,0 +1,138 @@
+{
+  "source_course": "../race2/course_dir+1_3213.json",
+  "provenance": {
+    "source_course": "../race2/course_dir+1_3213.json"
+  },
+  "course_sha256": "68398103af6d9c56477715dfff7a692c5841bcc467c41b18973b753d4c19d443",
+  "planned_duration_s": 83.34861100233958,
+  "speed_bound_m_s": 0.23973927702002423,
+  "acceleration_bound_m_s2": 0.4990014980024971,
+  "crossings": [
+    {
+      "name": "hoop-3-pass1",
+      "time_s": 11.586405430926925
+    },
+    {
+      "name": "hoop-2-pass2",
+      "time_s": 40.971428856357186
+    },
+    {
+      "name": "hoop-1-pass3",
+      "time_s": 59.27557744826453
+    },
+    {
+      "name": "hoop-3-pass4",
+      "time_s": 78.61875251114513
+    }
+  ],
+  "crossing_details": [
+    {
+      "name": "hoop-3-pass1",
+      "gate_id": "hoop-3-pass1",
+      "crossing_position_m": [
+        1.039892,
+        0.541558,
+        0.819525
+      ],
+      "requested_speed_m_s": 0.2,
+      "planned_speed_m_s": 0.12786094774401294
+    },
+    {
+      "name": "hoop-2-pass2",
+      "gate_id": "hoop-2-pass2",
+      "crossing_position_m": [
+        -0.504336,
+        -0.784182,
+        0.425246
+      ],
+      "requested_speed_m_s": 0.2,
+      "planned_speed_m_s": 0.12786094774401285
+    },
+    {
+      "name": "hoop-1-pass3",
+      "gate_id": "hoop-1-pass3",
+      "crossing_position_m": [
+        1.345699,
+        -1.347254,
+        0.953794
+      ],
+      "requested_speed_m_s": 0.2,
+      "planned_speed_m_s": 0.12786094774401285
+    },
+    {
+      "name": "hoop-3-pass4",
+      "gate_id": "hoop-3-pass4",
+      "crossing_position_m": [
+        1.039892,
+        0.541558,
+        0.819525
+      ],
+      "requested_speed_m_s": 0.2,
+      "planned_speed_m_s": 0.12786094774401285
+    }
+  ],
+  "turning_details": [
+    {
+      "after_crossing": 1,
+      "waypoint_index": 1,
+      "position_m": [
+        0.1862599799593666,
+        0.8164125539836271,
+        0.798274750782426
+      ],
+      "time_s": 21.298783354695374,
+      "requested_velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "planned_velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "after_crossing": 1,
+      "waypoint_index": 2,
+      "position_m": [
+        -0.7976062874447778,
+        0.0006034567081487641,
+        0.4066642488058898
+      ],
+      "time_s": 31.753487114096558,
+      "requested_velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "planned_velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "after_crossing": 3,
+      "waypoint_index": 1,
+      "position_m": [
+        1.3537876728468783,
+        -0.67689043816747,
+        1.3035057624598578
+      ],
+      "time_s": 67.79848541543846,
+      "requested_velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "planned_velocity_m_s": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "time_scale": 1.5641992612194215,
+  "note": "Planned reference only; no flight commands or physical qualification."
+}

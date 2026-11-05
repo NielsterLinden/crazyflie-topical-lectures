@@ -1,0 +1,98 @@
+{
+ "course_name": "race2-hoops-321",
+ "enabled_for_flight": false,
+ "uri_environment_variable": "CF_URI",
+ "yaw_deg": 0.0,
+ "start": [
+  0.0,
+  0.0,
+  1.0
+ ],
+ "finish": [
+  1.04,
+  1.142,
+  0.82
+ ],
+ "hoops": [
+  {
+   "name": "hoop-3-pass1",
+   "centre": [
+    1.039892,
+    0.541558,
+    0.819525
+   ],
+   "normal": [
+    -0.052387,
+    0.996416,
+    -0.066407
+   ],
+   "radius_m": 0.468024
+  },
+  {
+   "name": "hoop-2-pass2",
+   "centre": [
+    -0.504336,
+    -0.784182,
+    0.425246
+   ],
+   "normal": [
+    0.99775,
+    -0.033526,
+    0.058068
+   ],
+   "radius_m": 0.404494
+  },
+  {
+   "name": "hoop-1-pass3",
+   "centre": [
+    1.345699,
+    -1.347254,
+    0.953794
+   ],
+   "normal": [
+    0.023101,
+    -0.043957,
+    0.998766
+   ],
+   "radius_m": 0.315092
+  },
+  {
+   "name": "hoop-3-pass4",
+   "centre": [
+    1.039892,
+    0.541558,
+    0.819525
+   ],
+   "normal": [
+    -0.052387,
+    0.996416,
+    -0.066407
+   ],
+   "radius_m": 0.468024
+  }
+ ],
+ "limits": {
+  "setpoint_rate_hz": 50.0,
+  "target_speed_m_s": 0.3,
+  "maximum_speed_m_s": 0.5,
+  "maximum_acceleration_m_s2": 1.0,
+  "maximum_tilt_deg": 20.0,
+  "maximum_tracking_error_m": 0.3,
+  "telemetry_timeout_s": 0.25,
+  "drone_radius_m": 0.12,
+  "clearance_margin_m": 0.08,
+  "pre_post_distance_m": 0.4,
+  "takeoff_duration_s": 3.0,
+  "landing_duration_s": 3.0,
+  "bounds_min": [
+   -1.6,
+   -2.2,
+   -0.2
+  ],
+  "bounds_max": [
+   3.0,
+   1.6,
+   1.6
+  ]
+ }
+}

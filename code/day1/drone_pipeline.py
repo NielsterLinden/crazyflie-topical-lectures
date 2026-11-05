@@ -118,6 +118,21 @@ def _check_heading(run):
               'discard this run, face the drone along +x and fly again' % np.median(yaw))
 
 
+def lh_trust(sweep_std=0.0016, sweep_std2=0.004):
+    """Ground command: trust Lighthouse sweeps less (firmware defaults 0.0004 / 0.001 rad), so a few
+    blocked or reflected sweeps while passing a hoop frame move the estimate less; flow + IMU carry it.
+    Stays set until reboot, so it also holds for the organisers' runner if it does not reboot."""
+    with crazyflie.connect(URI) as scf:
+        p = scf.cf.param
+        old = {n: p.get_value(n) for n in ('lighthouse.sweepStd', 'lighthouse.sweepStd2')}
+        p.set_value('lighthouse.sweepStd', sweep_std)
+        p.set_value('lighthouse.sweepStd2', sweep_std2)
+        time.sleep(0.3)
+        new = {n: p.get_value(n) for n in old}
+    print('Lighthouse sweep std was %s, now %s' % (old, new))
+    return new
+
+
 def lh_check(seconds=8.0, yaml=None):
     """No flight: are the Lighthouse base stations seen and fused? Optional `yaml` uploads a setup first
     (as `crazyflie.py lighthouse`). Prints status, active stations, position and yaw; returns True when usable."""
