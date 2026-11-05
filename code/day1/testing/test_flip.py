@@ -47,3 +47,13 @@ assert calls[-1] == ('send_stop_setpoint',)
 calls.clear(); flip.fly(step='hover')
 assert not [c for c in calls if c[0] == 'param'] and calls[-1] == ('send_stop_setpoint',)
 print('flip dry run: all checks passed')
+
+import rehearse, numpy as np, tempfile, os
+tr = os.path.join(tempfile.mkdtemp(dir='/tmp/claude-1000'), 'trajectory.csv')
+tt = np.linspace(0, 3, 31)
+np.savetxt(tr, np.c_[tt, 0.3 * tt, 0 * tt, 0.8 + 0 * tt, 0 * tt + 0.3, 0 * tt, 0 * tt, 0 * tt, 0 * tt, 0 * tt],
+           delimiter=',', header='time_s,x_m,y_m,z_m,vx_m_s,vy_m_s,vz_m_s,ax_m_s2,ay_m_s2,az_m_s2', comments='')
+calls.clear(); rehearse.fly(tr, room=2.0)
+pos = [c for c in calls if c[0] == 'send_position_setpoint']
+assert max(c[1] for c in pos) > 0.8 and calls[-1] == ('send_stop_setpoint',)
+print('rehearsal dry run: all checks passed')
