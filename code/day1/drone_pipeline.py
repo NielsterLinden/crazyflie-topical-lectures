@@ -118,6 +118,47 @@ def _check_heading(run):
               'discard this run, face the drone along +x and fly again' % np.median(yaw))
 
 
+def lh_check(seconds=8.0, yaml=None):
+    """No flight: are the Lighthouse base stations seen and fused? Optional `yaml` uploads a setup first
+    (as `crazyflie.py lighthouse`). Prints status, active stations, position and yaw; returns True when usable."""
+    names = [('lighthouse.status', 'uint8_t'), ('lighthouse.bsActive', 'uint16_t'), ('stateEstimate.x', 'float'),
+             ('stateEstimate.y', 'float'), ('stateEstimate.z', 'float'), ('stabilizer.yaw', 'float')]
+    with crazyflie.connect(URI, lighthouse_config=yaml) as scf:
+        names = [(n, t) for n, t in names if crazyflie._toc_has(scf, n)]
+        if not any(n == 'lighthouse.status' for n, _ in names):
+            print('no lighthouse log variables: the Lighthouse deck is not detected')
+            return False
+        crazyflie.reset_estimator(scf, settle=2.0)
+        rows = []
+        conf = crazyflie.LogConfig(name='lh', period_in_ms=100)
+        for n, t in names:
+            conf.add_variable(n, t)
+        conf.data_received_cb.add_callback(lambda _ts, data, _c: rows.append(data))
+        scf.cf.log.add_config(conf)
+        conf.start()
+        try:
+            for _ in range(int(seconds)):
+                time.sleep(1.0)
+                if rows:
+                    r = rows[-1]
+                    print('status %d (2 = ok)  stations active %s  x %+.2f y %+.2f z %+.2f m  yaw %+.0f deg' % (
+                        r['lighthouse.status'], bin(r.get('lighthouse.bsActive', 0)).count('1'),
+                        r['stateEstimate.x'], r['stateEstimate.y'], r['stateEstimate.z'], r['stabilizer.yaw']))
+        finally:
+            conf.stop()
+    if not rows:
+        print('no samples arrived: reconnect and rerun')
+        return False
+    last = rows[len(rows) // 2:]
+    n_bs = min(bin(r.get('lighthouse.bsActive', 0)).count('1') for r in last)
+    spread = max(float(np.ptp([r['stateEstimate.%s' % a] for r in last])) for a in 'xyz')
+    ok = all(r['lighthouse.status'] == 2 for r in last) and n_bs >= 2 and spread < 0.02
+    print('LIGHTHOUSE %s: status 2 throughout %s, >= 2 stations %s (min %d), position still within 2 cm %s (%.3f m)'
+          % ('OK' if ok else 'NOT OK', all(r['lighthouse.status'] == 2 for r in last), n_bs >= 2, n_bs,
+             spread < 0.02, spread))
+    return ok
+
+
 def abort_test():
     """Once per session: a 10 s dummy loop with the flights' abort window; press Enter in it, it must report the abort."""
     crazyflie.bench_test_abort()

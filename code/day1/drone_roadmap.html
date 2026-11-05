@@ -99,9 +99,25 @@ td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size
 <body>
 <main>
 <header>
-  <h1>Drone 4 flight roadmap</h1>
-  <p class="meta">Crazyflie 2.1 + flow deck · <span class="mono">radio://0/30/2M/E7E7E7E704</span> · state on Thursday 5 November 2026, ~09:55 · tools: <span class="mono">code/day1/drone_pipeline.py</span> · handover: <span class="mono">code/day1/HANDOVER.md</span></p>
+  <h1>Drone 4: race day plan</h1>
+  <p class="meta">Crazyflie 2.1 + flow deck · <span class="mono">radio://0/30/2M/E7E7E7E704</span> · state on Thursday 5 November 2026, ~10:00, testing at ~11:30 · tools: <span class="mono">code/day1/drone_pipeline.py</span> · handover: <span class="mono">code/day1/HANDOVER.md</span></p>
 </header>
+
+<section aria-labelledby="plan">
+  <h2 id="plan">Race day plan: 1.5 h to testing</h2>
+  <p class="lead">Two races today. <b>Race 1: just pass every hoop in time.</b> Race 2: run from our own laptops, with a secret secondary goal (a backflip). The organisers publish how to run the race on GitLab later today, plus a JSON file with the hoop positions and edges in the Lighthouse frame. We get about 7 m of track: use all of it.</p>
+  <ol class="seq">
+    <li class="next"><div class="d"><h3>Charge to ≥ 4.10 V at rest</h3><span>~3.67 V after this morning. USB in, <code>crazyflie.py charge --label 4</code>; unplug before flying.</span></div><span class="pill warn">now · Niels</span></li>
+    <li class="done"><div class="d"><h3>Lighthouse deck: present and fused</h3><span>deck.bcLighthouse4 = 1, lighthouse.fwdToEstimator = 1: the Kalman filter fuses Lighthouse by itself once base stations are visible. Absolute yaw should also fix the ±17° flow-deck yaw drift.</span></div><span class="pill ok">checked</span></li>
+    <li class="next"><div class="d"><h3>In the arena: upload the setup, then <code>drone_pipeline.py lh_check</code></h3><span><code>crazyflie.py lighthouse --label 4 --yaml &lt;organisers' file&gt;</code>, then <code>lh_check</code> (no flight). It must print LIGHTHOUSE OK: status 2, ≥ 2 stations, position still within 2 cm. Tested here: correctly NOT OK, 0 stations.</span></div><span class="pill warn">at testing</span></li>
+    <li class="done"><div class="d"><h3>Height sensor noise: no new calibration needed</h3><span>Today's hovers at 0.5 m: ToF noise 2.0–2.6 mm, against 1.7 mm at rest on Day 2. The Day 2 value stands.</span></div><span class="pill ok">done</span></li>
+    <li class="done"><div class="d"><h3>Day 2 E7 with the measured lag 0.50 s</h3><span>Crossing speeds halve: 0.22 m/s with range, 0.13 m/s in a 3 s range gap.</span></div><span class="pill ok">done</span></li>
+    <li><div class="d"><h3>Hoop JSON → visual check → plan → dry run</h3><span><code>code/day3/hoop_view.py</code> draws top and side views with hoop numbers and normals, so we can confirm by eye that the file is right. Then plan the path with the course planner, run its dry run, launch. Being built now. Steps: <code>code/day3/RACE_READY.md</code>.</span></div><span class="pill todo">building</span></li>
+    <li><div class="d"><h3>Race-area floor and battery gate</h3><span><code>crazyflie.py flow --label 4</code> over the race floor (quality ~100), then <code>preflight vbat_min=4.10</code> on a card, facing +x.</span></div><span class="pill todo">at testing</span></li>
+    <li><div class="d"><h3>Race 1: pass every hoop, conservative speed</h3><span>The goal is to finish in time, not to be fast. Race speed stays within the E7 rule. Each flight needs Niels's go.</span></div><span class="pill todo">race 1</span></li>
+    <li><div class="d"><h3>Race 2 extra: backflip, research first</h3><span>Best practice and a go/no-go are in <code>code/day3/backflip_notes.md</code> (being written). A flip is normally an open-loop rate manoeuvre, not a new PID with a third derivative. Nothing flips without a separate go.</span></div><span class="pill todo">research</span></li>
+  </ol>
+</section>
 
 <section aria-labelledby="where">
   <h2 id="where">Where we are</h2>
@@ -140,7 +156,7 @@ td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size
 </section>
 
 <section aria-labelledby="seq">
-  <h2 id="seq">Flight sequence today</h2>
+  <h2 id="seq">Day 1 flight sequence (done)</h2>
   <p class="lead">Each step uses data from the one before. Results land in <code>data/</code>, parameters in <code>data/drone_4_params.json</code>, plots in <code>data/plots/</code>.</p>
   <ol class="seq">
     <li class="done"><div class="d"><h3>Hover over the plain floor, <code>firmware_flight hold</code></h3><span>Found the floor problem. Run discarded as a calibration.</span></div><span class="pill ok">done</span></li>
