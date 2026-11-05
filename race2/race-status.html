@@ -130,13 +130,16 @@ Speed limit raised to 0.8 m/s.</td></tr>
 <tr><td><code>code/day1/flip.py</code></td><td>The flight log now records the raw height-sensor distance (<code>range.zrange</code>) instead of vertical speed.</td></tr>
 <tr><td><code>submissions/team-hoop-storm/v01/optimized/tuning.json</code></td><td>Optimized profile: <code>position_p_xy</code> ×0.95 (xKp/yKp 2.0 → 1.9). The baseline profile is unchanged. Both are within the organisers' limits (controller 0.9–1.1).</td></tr>
 </table></div>
-<p>Commits on <code>drone-pipeline</code>: <code>57a8085</code>, <code>eb8f0b9</code>, <code>dd18488</code>, <code>167196f</code>.</p>
+<p>Commits on <code>drone-pipeline</code>: <code>57a8085</code>, <code>eb8f0b9</code>, <code>dd18488</code>, <code>167196f</code>, <code>ab0cdcf</code>, <code>250f3d2</code>, <code>9a85e73</code>.</p>
 </section>
 
 <section>
 <h2>Race 1 plan</h2>
 <p>The organisers' slow plan with stops, the same as the clean 12:53 flight. Use a full battery (at least 4.10 V on the charger) and reboot first, so the Lighthouse setting from race 2 tests is gone. Run it with the organisers' runner on their laptop with <code>submissions/team-hoop-storm/v01/</code>, or on our own laptop:</p>
 <pre>PY rehearse.py fly ../../race2/plan_cons/trajectory.csv absolute=1 vbat_min=4.0</pre>
+<p>Organisers' operator command (dry run passes for both profiles with course release 0.1.16; hoops match the official surveys):</p>
+<pre>python scripts/run_race_submission.py --submission submissions/team-hoop-storm/v01/baseline --fly --label 4</pre>
+<p>Submitted on Nikhef GitLab as branch <code>hoop-storm</code>, with <a href="https://gitlab.nikhef.nl/graven/crazyflie-topical-lectures/-/merge_requests/9">merge request !9</a> into <code>course</code>. The optimized ×0.95 profile has passed the dry run but has never been flown.</p>
 </section>
 
 <section>

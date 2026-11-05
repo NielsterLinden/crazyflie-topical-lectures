@@ -76,8 +76,8 @@ def apply_tuning(cf, path):
 
 def fly(path, room=3.0, vbat_min=3.9, laps=1, absolute=False, backflip=0, flip_z=1.7, tuning=None, lead=0.0, arm='', hold=2.0, lh_std=0.0):
     """FLIES the trajectory `laps` times. Enter lands. Lands too when the estimate leaves the path's box by 0.3 m.
-    backflip=1 (race 2 finale, Lighthouse only): after a clean loop, 0.3 m/s to (0, 0, flip_z), hold 2 s, flip.fly's
-    gates + flip, land. Skipped after a fence trip or Enter; the hover-thrust gate stands in for vbat in flight."""
+    backflip=1 (race 2 finale, Lighthouse only): after the path (also after a fence trip), 0.3 m/s to (0, 0, flip_z), hold 2 s, flip.fly's
+    gates + flip, land. Skipped only after Enter; the hover-thrust gate stands in for vbat in flight."""
     if backflip and not (absolute and 1.2 <= flip_z <= 2.2):
         raise crazyflie.DroneError('backflip needs absolute=1 and 1.2 <= flip_z <= 2.2')
     t, p, s = load(path, room, absolute=absolute)
@@ -111,7 +111,7 @@ def fly(path, room=3.0, vbat_min=3.9, laps=1, absolute=False, backflip=0, flip_z
         conf = flip._log(scf, rows)
         time.sleep(0.3)
         o = np.zeros(3) if absolute else np.array([rows[-1]['stateEstimate.x'], rows[-1]['stateEstimate.y'], 0.0])
-        ref, clean = [], True
+        ref = []
         if backflip:
             cf.commander.send_setpoint(0, 0, 0, 0)     # unlock the rpyt commander on the ground, as flip.fly does
         try:
@@ -128,15 +128,14 @@ def fly(path, room=3.0, vbat_min=3.9, laps=1, absolute=False, backflip=0, flip_z
                 e = rows[-1]
                 rel = np.array([e['stateEstimate.x'], e['stateEstimate.y']]) - o[:2]
                 if np.any(rel < p[:, :2].min(0) - 0.3) or np.any(rel > p[:, :2].max(0) + 0.3):   # path box + 0.3 m
-                    print('FENCE: estimate at x %+.2f y %+.2f from start, landing' % tuple(rel))
-                    clean = False
+                    print('FENCE: estimate at x %+.2f y %+.2f from start, leaving the path' % tuple(rel))
                     break
                 abort.pump()
                 if abort.stop.is_set():
                     break
                 time.sleep(0.01)
             flip._hold(cf, *map(float, sp), 1.0, abort)
-            if backflip and clean and not abort.stop.is_set():
+            if backflip and not abort.stop.is_set():   # fence trip too: the gates at the centre still decide
                 c = np.array([0.0, 0.0, flip_z])
                 for q in np.linspace(sp, c, max(2, int(np.linalg.norm(c - sp) / 0.3 * 100))):   # 0.3 m/s line
                     cf.commander.send_position_setpoint(*map(float, q), 0.0)

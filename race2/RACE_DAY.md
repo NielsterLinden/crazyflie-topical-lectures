@@ -15,3 +15,7 @@ Regenerate exactly: `PY race2/fast_path.py` (defaults v_max=0.7 v_hoop=0.5 a=0.9
 
 `lh_std=0.0001` (Lighthouse trust x4) is what made it work: the height sensor reads the hoop 3 bottom rim and the
 hoop 1 rim (range.zrange 0.3-0.5 m) and drags the estimate down. A reboot clears it.
+
+## Final run: race 2 + backflip (decided 2026-11-05 after race 1)
+`cd code/day1 && PY rehearse.py fly ../../race2/plan_fast/trajectory.csv absolute=1 lead=0.5 hold=0.5 vbat_min=3.85 lh_std=0.0001 backflip=1 arm=$S/GO`
+Flip after the path, also after a fence trip (not after Enter): 0.3 m/s to (0, 0, 1.7), hold 2 s, gates (height, position, hover thrust < 52000, model z min >= 0.5 m), else it just lands. The flip spin itself has never been flown.
